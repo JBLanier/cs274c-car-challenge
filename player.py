@@ -1,3 +1,5 @@
+# player.py
+
 import cv2
 import numpy as np
 import os
@@ -20,7 +22,7 @@ def draw_steering_line(img, steering_angle, color, guide=False):
     cv2.line(frame, (x1, y1), (x2, y2), color, 3, lineType=cv2.LINE_AA)
 
     if guide:
-
+        # draw simple guide lines at horizontal axis
         cv2.line(frame, (center_x + length + 4, center_y), (center_x + length + 25, center_y), (255, 255, 255), 1)
         cv2.line(frame, (center_x - length - 4, center_y), (center_x - length - 25, center_y), (255, 255, 255), 1)
 
@@ -36,14 +38,18 @@ def intercept_quit_key_command(milliseconds_time_to_wait):
     return False
 
 
-# Display a single frame in a gui window, debug_info is displayed as text im corner of image.
+#
+# -- Call this externally --
+#
+# Display a single frame in a gui window, debug_info is displayed as text in corner of image.
 # Steering angles are graphically displayed.
 #
-# Closes all windows and returns true if user pressed key command to quit.
+# Closes all windows and returns true, if user pressed key command to quit.
 # <milliseconds_time_to_wait> is how long you want the thread to hang and continue displaying the frame, determines fps
 # Ideally make <milliseconds_time_to_wait> = (milliseconds for desired fps - measured calculation time)
 def display_frame(img, true_angle=None, predicted_angle=None, debug_info=None, milliseconds_time_to_wait=23):
-    img_to_modify = img.copy()
+    img_to_modify = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
     if true_angle or predicted_angle or debug_info:
         alpha = 0.5
         if predicted_angle is not None:
