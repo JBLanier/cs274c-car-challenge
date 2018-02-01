@@ -67,31 +67,3 @@ def display_frame(img, true_angle=None, predicted_angle=None, debug_info=None, m
     cv2.imshow('Preview', img_to_modify)
 
     return intercept_quit_key_command(milliseconds_time_to_wait)
-
-
-if __name__ == '__main__':
-    # Play a video with no predictions
-    # Currently just a debug script, you should probably be running something else as main and be using display_frame().
-
-    # Todo: Replace hard coded file paths
-    images_dir_path = "/data/jpgs_output/center/"
-    ground_truth = np.genfromtxt("/data/jpgs_output/interpolated.csv", dtype='float', delimiter=',', names=True)
-
-    directory = os.fsencode(images_dir_path)
-    csv_index = 2
-    for file in os.listdir(directory):
-        filename = os.fsdecode(file)
-        if filename.endswith(".jpg"):
-            frame = cv2.imread(images_dir_path + "/" + filename)
-            angle = ground_truth['angle'][csv_index]
-
-            if display_frame(frame, true_angle=angle, predicted_angle=0, debug_info=filename):
-                break
-
-            csv_index += 3
-
-        else:
-            print("{} is not a jpeg image".format(filename))
-
-
-
