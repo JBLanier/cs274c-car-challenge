@@ -7,3 +7,4 @@
 - [JB's Datasets Dropbox Folder](https://www.dropbox.com/sh/03ci9jkpzfp1n1a/AACTG9zU_FJ4GUIcgrDGRP5Za?dl=0)
 - [Convolutional Net Visualization](http://scs.ryerson.ca/~aharley/vis/conv/)
 - [MIT Self Driving Car Class](https://selfdrivingcars.mit.edu/) (The two lectures on CNN's and RNN's are :fire:)
+- [Deep Tesla Dataset](https://github.com/udacity/self-driving-car)
