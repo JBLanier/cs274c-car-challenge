@@ -1,0 +1,3 @@
+[submodule "git@github.com:JBLanier/Car-Challenge-Transfer-Learning.git"]
+	path = git@github.com:JBLanier/Car-Challenge-Transfer-Learning.git
+	url = git@github.com:JBLanier/Udacity-Car-Challenge-Transfer-Learning.git
