@@ -2,6 +2,7 @@
 jpg_outputs
 data
 CH_02_Prepared
+tfrecord_out
 
 #Jupyter Notebook
 MANIFEST
