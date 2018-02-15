@@ -69,6 +69,8 @@ def main(csv_path, frames_dir, out_dir, batch_size):
 
     print('(%d frames to write)\n' % len(csv))
 
+    num_shards = 0
+
     while csv_index < len(csv):
         start_index = csv_index
         end_index = min(csv_index + batch_size - 1, len(csv) - 1)
@@ -76,16 +78,18 @@ def main(csv_path, frames_dir, out_dir, batch_size):
 
         output_file = os.path.join(
             out_dir,
-            'frames_%sto%s.tfrecords' % (start_index, end_index)
+            '%02d_frames_%sto%s.tfrecords' % (num_shards, start_index, end_index)
         )
         with tf.python_io.TFRecordWriter(output_file) as record_writer:
             while csv_index <= end_index:
                     row = csv[csv_index]
-                    image = imageio.imread("{}/{}.jpg".format(frames_dir, row[0]))
+                    filename = "{}/{}.jpg".format(frames_dir, row[0])
+                    image_bytes = open(filename, "rb").read()
                     target = row[1]
+                    target = csv_index #Todo: delete this line
                     example = tf.train.Example(features=tf.train.Features(
                         feature={
-                            'image': _bytes_feature(image.tobytes()),
+                            'image': _bytes_feature(image_bytes),
                             'target': _float_feature(target)
                         }))
                     record_writer.write(example.SerializeToString())
@@ -96,6 +100,7 @@ def main(csv_path, frames_dir, out_dir, batch_size):
         rough_size_in_megabytes = os.path.getsize(output_file) / (1024 * 1024.0)
         print('%d frames written (%.2f MB) %stotal %d/%d%s' %
               (csv_index - start_index, rough_size_in_megabytes, BColors.OKGREEN, csv_index, len(csv), BColors.ENDC))
+        num_shards += 1
 
     print(BColors.OKGREEN + 'Done' + BColors.ENDC)
 
@@ -121,7 +126,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--batch_size',
         type=int,
-        default=200,
+        default=3000,
         help='Max number of images per tfrecord (making each record ~100MB is preferable)'
     )
     args, _ = parser.parse_known_args()

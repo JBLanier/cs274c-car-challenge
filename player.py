@@ -50,8 +50,8 @@ def intercept_quit_key_command(milliseconds_time_to_wait):
 def display_frame(img, true_angle=None, predicted_angle=None, debug_info=None, guide=True, milliseconds_time_to_wait=23):
     img_to_modify = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
+
     if true_angle or predicted_angle or debug_info:
-        alpha = 0.5
         if predicted_angle is not None:
             draw_steering_line(img_to_modify, predicted_angle, (255, 0, 0), guide=guide)
         if true_angle is not None:
@@ -59,9 +59,9 @@ def display_frame(img, true_angle=None, predicted_angle=None, debug_info=None, g
         if debug_info:
             cv2.putText(img_to_modify, debug_info,
                         (1, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1)
+
         # apply the overlay
-        cv2.addWeighted(img_to_modify, alpha, img, 1 - alpha,
-                        0, img_to_modify)
+        np.clip(img_to_modify, 0, 255)
 
     # Display the resulting frame
     cv2.imshow('Preview', img_to_modify)

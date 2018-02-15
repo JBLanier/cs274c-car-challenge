@@ -3,6 +3,10 @@ jpg_outputs
 data
 CH_02_Prepared
 tfrecord_out
+HMB_5_prepared/
+small_batch/
+tf_files/
+
 
 #Jupyter Notebook
 MANIFEST
