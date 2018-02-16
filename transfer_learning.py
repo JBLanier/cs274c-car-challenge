@@ -12,36 +12,6 @@ import tensorflow as tf
 from tensorflow.python.platform import gfile
 
 
-def create_model_graph(model_info, model_dir, features):
-    """"Creates a graph from saved GraphDef file and returns a Graph object.
-    Args:
-      model_info: Dictionary containing information about the model architecture.
-      model_dir: Dictionary where the model is saved.
-      input_tensor: input tensor which will be used to feed into the model.
-    Returns:
-      Graph holding the trained Inception network, and various tensors we'll be
-      manipulating.
-    """
-
-    model_path = os.path.join(model_dir, model_info['model_file_name'])
-    with gfile.FastGFile(model_path, 'rb') as f:
-        graph_def = tf.GraphDef()
-        graph_def.ParseFromString(f.read())
-
-        bottleneck_tensor, resized_input_tensor = (tf.import_graph_def(
-            graph_def,
-            name='',
-            return_elements=[
-                model_info['bottleneck_tensor_name'],
-                model_info['resized_input_tensor_name'],
-            ],
-            input_map={
-                model_info['resized_input_tensor_name']: features
-            }
-        ))
-    return bottleneck_tensor
-
-
 def maybe_download_and_extract(data_url, model_dir):
     """Download and extract model tar file.
     If the pretrained model we're using doesn't already exist, this function
@@ -65,7 +35,7 @@ def maybe_download_and_extract(data_url, model_dir):
         filepath, _ = urllib.request.urlretrieve(data_url, filepath, _progress)
         print()
         statinfo = os.stat(filepath)
-        tf.logging.info('Successfully downloaded', filename, statinfo.st_size,
+        tf.logging.info('Successfully downloaded %s, %d', filename, statinfo.st_size,
                         'bytes.')
     tarfile.open(filepath, 'r:gz').extractall(dest_directory)
 
@@ -88,7 +58,8 @@ def create_model_info(architecture):
         # pylint: disable=line-too-long
         data_url = 'http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz'
         # pylint: enable=line-too-long
-        bottleneck_tensor_name = 'pool_3/_reshape:0'
+        bottleneck_tensor_name = 'pool_3:0'
+        # bottleneck_tensor_name = 'pool_3/(pool_3):0'
         bottleneck_tensor_size = 2048
         input_width = 299
         input_height = 299
@@ -167,15 +138,31 @@ def transfer_learning_cnn_fn(features, labels, mode, params):
     # Build the pre-trained cnn portion of the net
     model_info = create_model_info(params['architecture'])
     maybe_download_and_extract(model_info['data_url'], params['model_dir'])
-    bottleneck_tensor = create_model_graph(model_info=model_info,
-                                                  model_dir=params['model_dir'],
-                                                  features=features
-                                                )
+
+    model_path = os.path.join(params['model_dir'], model_info['model_file_name'])
+
+    bottleneck_tensor=None
+
+    with tf.name_scope(params['architecture']):
+        with gfile.FastGFile(model_path, 'rb') as f:
+            graph_def = tf.GraphDef()
+            graph_def.ParseFromString(f.read())
+
+            bottleneck_tensor = tf.squeeze(tf.import_graph_def(
+                graph_def,
+                name='imported_model',
+                return_elements=[
+                    model_info['bottleneck_tensor_name'],
+                ],
+                input_map={
+                    model_info['resized_input_tensor_name']: features
+                }
+            )[0], [1, 2])
 
 
     # Add our own fully-connected layers
-    fc1 = tf.layers.dense(bottleneck_tensor, units=500, activation=tf.nn.relu, name="fc_1")
-    fc2 = tf.layers.dense(fc1, units=200, activation=tf.nn.relu, name="fc_2")
+    fc1 = tf.layers.dense(bottleneck_tensor, units=200, activation=tf.nn.relu, name="fc_1")
+    fc2 = tf.layers.dense(fc1, units=100, activation=tf.nn.relu, name="fc_2")
     output_layer = tf.layers.dense(fc2, units=1, activation=None, name="output")
 
     # Reshape the output layer to a 1-dim Tensor to return predictions
@@ -189,10 +176,10 @@ def transfer_learning_cnn_fn(features, labels, mode, params):
     # Calculate loss using mean squared error
     mean_squared_error = tf.losses.mean_squared_error(labels=labels, predictions=predictions)
 
-    # Pre-made estimators use the total_loss instead of the average,
-    # so report total_loss for compatibility.
-    batch_size = tf.shape(labels)[0]
-    total_loss = tf.to_float(batch_size) * mean_squared_error
+    # # Pre-made estimators use the total_loss instead of the average,
+    # # so report total_loss for compatibility.
+    # batch_size = tf.shape(labels)[0]
+    # total_loss = tf.to_float(batch_size) * mean_squared_error
 
     if mode == tf.estimator.ModeKeys.TRAIN:
         optimizer = params.get("optimizer", tf.train.AdamOptimizer)
@@ -201,7 +188,7 @@ def transfer_learning_cnn_fn(features, labels, mode, params):
             loss=mean_squared_error, global_step=tf.train.get_global_step())
 
         return tf.estimator.EstimatorSpec(
-            mode=mode, loss=total_loss, train_op=train_op)
+            mode=mode, loss=mean_squared_error, train_op=train_op)
 
     # In evaluation mode we will calculate evaluation metrics.
     assert mode == tf.estimator.ModeKeys.EVAL
