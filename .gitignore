@@ -6,6 +6,7 @@ tfrecord_out
 HMB_5_prepared/
 small_batch/
 tf_files/
+predictions.mp4
 
 
 #Jupyter Notebook
