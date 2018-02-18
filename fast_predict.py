@@ -6,6 +6,8 @@
     classifier = FastPredict(learn.Estimator(model_fn=model_params.model_fn, model_dir=model_params.model_dir))
 
     Author: Marc Stogaitis
+    Source: https://github.com/marcsto/rl/blob/master/src/fast_predict.py
+    Modified to support base tf.estimator with input functions through dataset.from_generator() by J.B. Lanier
  """
 
 import tensorflow as tf
