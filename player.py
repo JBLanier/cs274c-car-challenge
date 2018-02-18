@@ -18,8 +18,8 @@ def draw_steering_line(img, steering_angle, color, guide=False):
     x2 = int(center_x + length * math.cos(steering_angle))
     y2 = int(center_y - length * math.sin(steering_angle))
 
-    # Draw a diagonal line with thickness of 3 px
-    cv2.line(img, (x1, y1), (x2, y2), color, 3, lineType=cv2.LINE_AA)
+    # Draw a diagonal line with thickness of 2 px
+    cv2.line(img, (x1, y1), (x2, y2), color, 2, lineType=cv2.LINE_AA)
 
     if guide:
         # draw simple guide lines at horizontal axis
@@ -47,23 +47,26 @@ def intercept_quit_key_command(milliseconds_time_to_wait):
 # Closes all windows and returns true, if user pressed key command to quit.
 # <milliseconds_time_to_wait> is how long you want the thread to hang and continue displaying the frame, determines fps
 # Ideally make <milliseconds_time_to_wait> = (milliseconds for desired fps - measured calculation time)
-def display_frame(img, true_angle=None, predicted_angle=None, debug_info=None, guide=True, milliseconds_time_to_wait=23):
+def display_frame(img, true_angle=None, predicted_angle=None, avg_angle=None, debug_info=None, guide=True, milliseconds_time_to_wait=23, video_writer=None):
     img_to_modify = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-
-    if true_angle or predicted_angle or debug_info:
+    if true_angle or predicted_angle or avg_angle or debug_info:
         if predicted_angle is not None:
             draw_steering_line(img_to_modify, predicted_angle, (255, 0, 0), guide=guide)
+        if avg_angle is not None:
+            draw_steering_line(img_to_modify, avg_angle, (0, 165, 255), guide=guide)
         if true_angle is not None:
             draw_steering_line(img_to_modify, true_angle, (0, 255, 0), guide=guide)
         if debug_info:
             cv2.putText(img_to_modify, debug_info,
                         (1, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1)
-
         # apply the overlay
         np.clip(img_to_modify, 0, 255)
 
     # Display the resulting frame
     cv2.imshow('Preview', img_to_modify)
+
+    if video_writer is not None:
+        video_writer.write(img_to_modify)
 
     return intercept_quit_key_command(milliseconds_time_to_wait)
