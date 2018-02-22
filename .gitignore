@@ -3,7 +3,7 @@ jpg_outputs
 data
 CH_02_Prepared
 tfrecord_out
-HMB_5_prepared/
+HMB_*_prepared/
 small_batch/
 tf_files/
 predictions.mp4
