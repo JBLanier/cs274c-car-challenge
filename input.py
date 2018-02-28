@@ -3,20 +3,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from time import gmtime, strftime
-
-import tensorflow as tf
-import numpy as np
 import argparse
+import multiprocessing
 import os
 import sys
-import multiprocessing
-import cv2
+from time import gmtime, strftime
 
-from transfer_learning import transfer_learning_cnn_fn
-from cnn import cnn_fn
+import cv2
+import numpy as np
+import tensorflow as tf
+
 import player
 from fast_predict import FastPredict
+from trainer.model import cnn_fn
 
 FLAGS = None
 tf.set_random_seed(42)
@@ -176,7 +175,7 @@ def main(argv):
 
     experiment = tf.contrib.learn.Experiment(estimator=model,
                                              train_input_fn=train_input_fn,
-                                             train_steps=100000,
+                                             train_steps=100,
                                              eval_input_fn=val_input_fn,
                                              eval_steps=None,
                                              checkpoint_and_export=True)

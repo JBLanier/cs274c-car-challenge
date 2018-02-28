@@ -27,13 +27,13 @@ def play_frames_with_csv_data(csv_path,frames_dir):
     for row in csv:
         frame = imageio.imread("{}/{}.jpg".format(frames_dir, row[0]))
         angle = row[1]
-        if player.display_frame(frame, true_angle=angle, debug_info=str(row[0])):
+        if player.display_frame(frame, true_angle=angle, debug_info=str(row[0]), milliseconds_time_to_wait=1):
             break
 
 
 if __name__ == '__main__':
     # play_jpg_frames_from_dir("CH_02_Prepared/HMB_1_prepared/frames")
-    play_frames_with_csv_data("CH_02_Prepared/HMB_1_prepared/data.csv","CH_02_Prepared/HMB_1_prepared/frames")
+    play_frames_with_csv_data("/media/jb/m2_linux/additional data/el_camino_back_prepared/data.csv","/media/jb/m2_linux/additional data/el_camino_back_prepared/frames/")
 
 
 
