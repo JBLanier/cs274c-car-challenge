@@ -18,6 +18,8 @@ from cnn import cnn_fn
 import player
 from fast_predict import FastPredict
 
+from hyperopt import fmin, tpe, hp, Trials
+
 FLAGS = None
 tf.set_random_seed(42)
 
@@ -157,35 +159,144 @@ def main(argv):
     #   - probably want this to be hyperparameter specs later
     model_dir = 'tf_files/models/cnn-' + strftime("%Y-%m-%d-%H:%M:%S", gmtime()) + '/'
 
-    estimator_config = tf.estimator.RunConfig(
-        save_summary_steps=100,        # Log a training summary (training loss by default) to tensorboard every n steps
-        save_checkpoints_steps=10000,  # Stop and save a checkpoint every n steps
-        keep_checkpoint_max=50         # How many checkpoints we save for this model before we start deleting old ones
-    )
 
-    model = tf.estimator.Estimator(
-        model_fn=cnn_fn,
-        params={
-            "learning_rate": 0.0001,
-            "optimizer": tf.train.AdamOptimizer,
-            "hidden_units": ["Cool story bro"]
-        },
-        model_dir=model_dir,
-        config=estimator_config
-    )
+    #Objective function for hyperopt
+    def objective(args):
+        estimator_config = tf.estimator.RunConfig(
+            save_summary_steps=100,        # Log a training summary (training loss by default) to tensorboard every n steps
+            save_checkpoints_steps=10000,  # Stop and save a checkpoint every n steps
+            keep_checkpoint_max=50         # How many checkpoints we save for this model before we start deleting old ones
+        )
 
-    experiment = tf.contrib.learn.Experiment(estimator=model,
-                                             train_input_fn=train_input_fn,
-                                             train_steps=100000,
-                                             eval_input_fn=val_input_fn,
-                                             eval_steps=None,
-                                             checkpoint_and_export=True)
+        model = tf.estimator.Estimator(
+            model_fn=cnn_fn,
+            params={
+                "learning_rate": 0.0001,
+                "optimizer": tf.train.AdamOptimizer,
+                "hidden_units": ["Cool story bro"],
+                'c1_size_filter': args['c1_size_filter'],
+                'c2_size_filter': args['c2_size_filter'],
+                'c3_size_filter': args['c3_size_filter'],
+                'c4_size_filter': args['c4_size_filter'],
+                'c5_size_filter': args['c5_size_filter'],
+                'c1_size_kernel': args['c1_size_kernel'],
+                'c2_size_kernel': args['c2_size_kernel'],
+                'c3_size_kernel': args['c3_size_kernel'],
+                'c4_size_kernel': args['c4_size_kernel'],
+                'c5_size_kernel': args['c5_size_kernel'],
+                'c1_stride_height': args['c1_stride_height'],
+                'c2_stride_height': args['c2_stride_height'],
+                'c3_stride_height': args['c3_stride_height'],
+                'c4_stride_height': args['c4_stride_height'],
+                'c5_stride_height': args['c5_stride_height'],
+                'c1_stride_width': args['c1_stride_width'],
+                'c2_stride_width': args['c2_stride_width'],
+                'c3_stride_width': args['c3_stride_width'],
+                'c4_stride_width': args['c4_stride_width'],
+                'c5_stride_width': args['c5_stride_width'],
+                'c1_activation': args['c1_activation'],
+                'c2_activation': args['c2_activation'],
+                'c3_activation': args['c3_activation'],
+                'c4_activation': args['c4_activation'],
+                'c5_activation': args['c5_activation'],
+            },
+            model_dir=model_dir,
+            config=estimator_config
+        )
 
-    # Setting 'checkpoint_and_export' to 'True' will cause checkpoints to be exported every n steps according to
-    #   'save_checkpoints_steps' in the estimator's config. It will also cause experiment.train_and_evaluate() to
-    #   run it's evaluation step (for us that's validation) whenever said checkpoints are exported.
+        experiment = tf.contrib.learn.Experiment(estimator=model,
+                                                 train_input_fn=train_input_fn,
+                                                 train_steps=1000,
+                                                 eval_input_fn=val_input_fn,
+                                                 eval_steps=None,
+                                                 checkpoint_and_export=False)
 
-    experiment.train_and_evaluate()
+        # Setting 'checkpoint_and_export' to 'True' will cause checkpoints to be exported every n steps according to
+        #   'save_checkpoints_steps' in the estimator's config. It will also cause experiment.train_and_evaluate() to
+        #   run it's evaluation step (for us that's validation) whenever said checkpoints are exported.
+
+        results = experiment.train_and_evaluate()
+        return (float(results[0]['loss']))
+
+
+    space = {
+        # 'c1_size_filter': hp.choice('c1_size_filter', np.arange(1,80+1, dtype=int)),
+        # 'c2_size_filter': hp.choice('c2_size_filter', np.arange(1,80+1, dtype=int)),
+        # 'c3_size_filter': hp.choice('c3_size_filter', np.arange(1,80+1, dtype=int)),
+        # 'c4_size_filter': hp.choice('c4_size_filter', np.arange(1,80+1, dtype=int)),
+        # 'c5_size_filter': hp.choice('c5_size_filter', np.arange(1,80+1, dtype=int)),
+
+        'c1_size_filter': hp.choice('c1_size_filter', [12, 24]),
+        'c2_size_filter': hp.choice('c2_size_filter', [24, 36]),
+        'c3_size_filter': hp.choice('c3_size_filter', [36, 48]),
+        'c4_size_filter': hp.choice('c4_size_filter', [48, 64]),
+        'c5_size_filter': hp.choice('c5_size_filter', [64, 76]),
+
+        'c1_size_kernel': hp.choice('c1_size_kernel', [3, 5, 7]),
+        'c2_size_kernel': hp.choice('c2_size_kernel', [3, 5, 7]),
+        'c3_size_kernel': hp.choice('c3_size_kernel', [3, 5, 7]),
+        'c4_size_kernel': hp.choice('c4_size_kernel', [3, 5, 7]),
+        'c5_size_kernel': hp.choice('c5_size_kernel', [3, 5, 7]),
+        'c1_stride_height': hp.choice('c1_stride_height', [1, 2, 3]),
+        'c2_stride_height': hp.choice('c2_stride_height', [1, 2, 3]),
+        'c3_stride_height': hp.choice('c3_stride_height', [1, 2, 3]),
+        'c4_stride_height': hp.choice('c4_stride_height', [1, 2, 3]),
+        'c5_stride_height': hp.choice('c5_stride_height', [1, 2, 3]),
+        'c1_stride_width': hp.choice('c1_stride_width', [1, 2, 3]),
+        'c2_stride_width': hp.choice('c2_stride_width', [1, 2, 3]),
+        'c3_stride_width': hp.choice('c3_stride_width', [1, 2, 3]),
+        'c4_stride_width': hp.choice('c4_stride_width', [1, 2, 3]),
+        'c5_stride_width': hp.choice('c5_stride_width', [1, 2, 3]),
+        'c1_activation': hp.choice('c1_activation', [tf.nn.relu, tf.nn.elu]),
+        'c2_activation': hp.choice('c2_activation', [tf.nn.relu, tf.nn.elu]),
+        'c3_activation': hp.choice('c3_activation', [tf.nn.relu, tf.nn.elu]),
+        'c4_activation': hp.choice('c4_activation', [tf.nn.relu, tf.nn.elu]),
+        'c5_activation': hp.choice('c5_activation', [tf.nn.relu, tf.nn.elu]),
+    }
+
+    # #IGNORE. For quick copy and paste
+    # 'c1_size_filter':
+    # 'c2_size_filter':
+    # 'c3_size_filter':
+    # 'c4_size_filter':
+    # 'c5_size_filter':
+    # 'c1_size_kernel':
+    # 'c2_size_kernel':
+    # 'c3_size_kernel':
+    # 'c4_size_kernel':
+    # 'c5_size_kernel':
+    # 'c1_stride_height':
+    # 'c2_stride_height':
+    # 'c3_stride_height':
+    # 'c4_stride_height':
+    # 'c5_stride_height':
+    # 'c1_stride_width':
+    # 'c2_stride_width':
+    # 'c3_stride_width':
+    # 'c4_stride_width':
+    # 'c5_stride_width':
+    # 'c1_activation':
+    # 'c2_activation':
+    # 'c3_activation':
+    # 'c4_activation':
+    # 'c5_activation':
+
+    max_evals = 30
+    trials = Trials()
+    #Hyperopt for optimizing NN parameters
+    best = fmin(fn=objective,
+        space=space,
+        algo=tpe.suggest,
+        max_evals=max_evals, # how many parameter combinations we want to try
+        trials=trials,
+        )
+
+    print("\n\n\nBest parameters found: {}\n\n\n".format(best))
+
+
+
+
+
 
     """-------------------------------------------------
     
@@ -194,44 +305,44 @@ def main(argv):
     
     """
 
-    # TODO: YOUR GOING TO WANT TO COMMENT THIS VIDEO PLAYER STUFF OUT WHEN RUNNING IN THE CLOUD
-
-    fast_predict = FastPredict(model)
-
-    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
-    video_writer = None
-
-    predict_sess = tf.Session()
-    input_fn = get_input_fn(input_file_names=val_file_names, batch_size=1, num_epochs=None,
-                            shuffle=False, return_full_size_image=True)
-    next_element = input_fn()
-    for i in range(10000):
-
-            try:
-                out = predict_sess.run(next_element)
-
-                predictions = list(fast_predict.predict(out[0]))
-
-                if video_writer is None:
-                    video_writer = cv2.VideoWriter("predictions.mp4", fourcc, 40.0, (out[2].shape[2], out[2].shape[1]))
-
-                # play frames in batch
-                for j, frame in enumerate(out[2]):
-                    # It's assumed that the pixel values are decimals between -1 and 1.
-                    # We put them back to between 0 and 255 before playing.
-                    if player.display_frame(img=(np.squeeze(frame)).astype(np.uint8),
-                                            debug_info=str(out[1][j]),
-                                            milliseconds_time_to_wait=1,
-                                            predicted_angle=predictions[j]['angle'],
-                                            true_angle=out[1][j],
-                                            video_writer=video_writer):
-                        break
-
-            except tf.errors.OutOfRangeError:
-                break
-
-    print("release")
-    video_writer.release()
+    # # TODO: YOUR GOING TO WANT TO COMMENT THIS VIDEO PLAYER STUFF OUT WHEN RUNNING IN THE CLOUD
+    #
+    # fast_predict = FastPredict(model)
+    #
+    # fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+    # video_writer = None
+    #
+    # predict_sess = tf.Session()
+    # input_fn = get_input_fn(input_file_names=val_file_names, batch_size=1, num_epochs=None,
+    #                         shuffle=False, return_full_size_image=True)
+    # next_element = input_fn()
+    # for i in range(10000):
+    #
+    #         try:
+    #             out = predict_sess.run(next_element)
+    #
+    #             predictions = list(fast_predict.predict(out[0]))
+    #
+    #             if video_writer is None:
+    #                 video_writer = cv2.VideoWriter("predictions.mp4", fourcc, 40.0, (out[2].shape[2], out[2].shape[1]))
+    #
+    #             # play frames in batch
+    #             for j, frame in enumerate(out[2]):
+    #                 # It's assumed that the pixel values are decimals between -1 and 1.
+    #                 # We put them back to between 0 and 255 before playing.
+    #                 if player.display_frame(img=(np.squeeze(frame)).astype(np.uint8),
+    #                                         debug_info=str(out[1][j]),
+    #                                         milliseconds_time_to_wait=1,
+    #                                         predicted_angle=predictions[j]['angle'],
+    #                                         true_angle=out[1][j],
+    #                                         video_writer=video_writer):
+    #                     break
+    #
+    #         except tf.errors.OutOfRangeError:
+    #             break
+    #
+    # print("release")
+    # video_writer.release()
 
     """-------------------------------------------------
 

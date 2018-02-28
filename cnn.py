@@ -10,11 +10,37 @@ def cnn_fn(features, labels, mode, params):
     if isinstance(features, dict):
         features = features['x']
 
-    conv1 = tf.layers.conv2d(features, 24, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv1')
-    conv2 = tf.layers.conv2d(conv1, 36, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv2')
-    conv3 = tf.layers.conv2d(conv2, 48, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv3')
-    conv4 = tf.layers.conv2d(conv3, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
-    conv5 = tf.layers.conv2d(conv4, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
+    # #NVIDIA CNN
+    # conv1 = tf.layers.conv2d(features, 24, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv1')
+    # conv2 = tf.layers.conv2d(conv1, 36, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv2')
+    # conv3 = tf.layers.conv2d(conv2, 48, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv3')
+    # conv4 = tf.layers.conv2d(conv3, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
+    # conv5 = tf.layers.conv2d(conv4, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
+    #
+    # flattened = tf.layers.flatten(conv5)
+    #
+    # # Add fully-connected layers
+    # fc1 = tf.layers.dense(flattened, units=1164, activation=tf.nn.relu, name="fc_1")
+    # fc2 = tf.layers.dense(fc1, units=100, activation=tf.nn.relu, name="fc_2")
+    # fc3 = tf.layers.dense(fc2, units=50, activation=tf.nn.relu, name="fc_3")
+    # fc4 = tf.layers.dense(fc3, units=10, activation=tf.nn.relu, name="fc_4")
+
+    #Hyperoptimized CNN
+    conv1 = tf.layers.conv2d(features, filters=params['c1_size_filter'], kernel_size=params['c1_size_kernel'],
+                             strides=(params['c1_stride_height'], params['c1_stride_width']), padding='valid',
+                             activation=params['c1_activation'], name='conv1')
+    conv2 = tf.layers.conv2d(conv1, filters=params['c2_size_filter'], kernel_size=params['c2_size_kernel'],
+                             strides=(params['c2_stride_height'], params['c2_stride_width']), padding='valid',
+                             activation=params['c2_activation'], name='conv2')
+    conv3 = tf.layers.conv2d(conv2, filters=params['c3_size_filter'], kernel_size=params['c3_size_kernel'],
+                             strides=(params['c3_stride_height'], params['c3_stride_width']), padding='valid',
+                             activation=params['c3_activation'], name='conv3')
+    conv4 = tf.layers.conv2d(conv3, filters=params['c4_size_filter'], kernel_size=params['c4_size_kernel'],
+                             strides=(params['c4_stride_height'], params['c4_stride_width']), padding='valid',
+                             activation=params['c4_activation'], name='conv4')
+    conv5 = tf.layers.conv2d(conv4, filters=params['c5_size_filter'], kernel_size=params['c5_size_kernel'],
+                             strides=(params['c5_stride_height'], params['c5_stride_width']), padding='valid',
+                             activation=params['c5_activation'], name='conv5')
 
     flattened = tf.layers.flatten(conv5)
 
