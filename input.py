@@ -139,7 +139,7 @@ def get_input_fn(input_file_names, batch_size=1, num_epochs=None, shuffle=False,
 
     return input_fn
 
-
+modelNum = 0
 def main(argv):
 
     train_file_names = get_tfrecord_file_names_from_directory(FLAGS.train_dir)
@@ -157,11 +157,14 @@ def main(argv):
 
     # Arbitrarily sticking a timestamp on the model_dirs to make each run different
     #   - probably want this to be hyperparameter specs later
-    model_dir = 'tf_files/models/cnn-' + strftime("%Y-%m-%d-%H:%M:%S", gmtime()) + '/'
-
+    #model_dir = 'tf_files/models/cnn-' + strftime("%Y-%m-%d-%H:%M:%S", gmtime()) + '/'
 
     #Objective function for hyperopt
     def objective(args):
+        global modelNum
+        model_dir = 'tf_files/models/cnn-' + strftime("%Y-%m-%d-%H:%M:%S", gmtime()) + '.' + str(modelNum)+ '/'
+        modelNum += 1
+
         estimator_config = tf.estimator.RunConfig(
             save_summary_steps=100,        # Log a training summary (training loss by default) to tensorboard every n steps
             save_checkpoints_steps=10000,  # Stop and save a checkpoint every n steps
@@ -234,21 +237,29 @@ def main(argv):
         'c4_size_filter': hp.choice('c4_size_filter', [48, 64]),
         'c5_size_filter': hp.choice('c5_size_filter', [64, 76]),
 
-        'c1_size_kernel': hp.choice('c1_size_kernel', [3, 5, 7]),
-        'c2_size_kernel': hp.choice('c2_size_kernel', [3, 5, 7]),
-        'c3_size_kernel': hp.choice('c3_size_kernel', [3, 5, 7]),
-        'c4_size_kernel': hp.choice('c4_size_kernel', [3, 5, 7]),
-        'c5_size_kernel': hp.choice('c5_size_kernel', [3, 5, 7]),
-        'c1_stride_height': hp.choice('c1_stride_height', [1, 2, 3]),
-        'c2_stride_height': hp.choice('c2_stride_height', [1, 2, 3]),
-        'c3_stride_height': hp.choice('c3_stride_height', [1, 2, 3]),
-        'c4_stride_height': hp.choice('c4_stride_height', [1, 2, 3]),
-        'c5_stride_height': hp.choice('c5_stride_height', [1, 2, 3]),
-        'c1_stride_width': hp.choice('c1_stride_width', [1, 2, 3]),
-        'c2_stride_width': hp.choice('c2_stride_width', [1, 2, 3]),
-        'c3_stride_width': hp.choice('c3_stride_width', [1, 2, 3]),
-        'c4_stride_width': hp.choice('c4_stride_width', [1, 2, 3]),
-        'c5_stride_width': hp.choice('c5_stride_width', [1, 2, 3]),
+        # 'c1_size_kernel': hp.choice('c1_size_kernel', [3, 5, 7]),
+        # 'c2_size_kernel': hp.choice('c2_size_kernel', [3, 5, 7]),
+        # 'c3_size_kernel': hp.choice('c3_size_kernel', [3, 5, 7]),
+        # 'c4_size_kernel': hp.choice('c4_size_kernel', [3, 5, 7]),
+        # 'c5_size_kernel': hp.choice('c5_size_kernel', [3, 5, 7]),
+
+        'c1_size_kernel': hp.choice('c1_size_kernel', [5, 7]),
+        'c2_size_kernel': hp.choice('c2_size_kernel', [3, 5]),
+        'c3_size_kernel': hp.choice('c3_size_kernel', [3, 3]),
+        'c4_size_kernel': hp.choice('c4_size_kernel', [3, 3]),
+        'c5_size_kernel': hp.choice('c5_size_kernel', [3, 3]),
+
+
+        'c1_stride_height': hp.choice('c1_stride_height', [3, 3]),
+        'c2_stride_height': hp.choice('c2_stride_height', [2, 3]),
+        'c3_stride_height': hp.choice('c3_stride_height', [2, 2]),
+        'c4_stride_height': hp.choice('c4_stride_height', [1, 2]),
+        'c5_stride_height': hp.choice('c5_stride_height', [1, 1]),
+        'c1_stride_width': hp.choice('c1_stride_width', [3, 3]),
+        'c2_stride_width': hp.choice('c2_stride_width', [2, 3]),
+        'c3_stride_width': hp.choice('c3_stride_width', [2, 2]),
+        'c4_stride_width': hp.choice('c4_stride_width', [1, 2]),
+        'c5_stride_width': hp.choice('c5_stride_width', [1, 1]),
         'c1_activation': hp.choice('c1_activation', [tf.nn.relu, tf.nn.elu]),
         'c2_activation': hp.choice('c2_activation', [tf.nn.relu, tf.nn.elu]),
         'c3_activation': hp.choice('c3_activation', [tf.nn.relu, tf.nn.elu]),
