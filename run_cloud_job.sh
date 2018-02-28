@@ -11,6 +11,13 @@ REGION=us-central1
 
 JOB_NAME=car_training_$DATE
 
+
+
+# This is how we list all files in a bucket folder separated by space:
+#gsutil ls gs://274-car-challenge/tf_records_unstructured/training/*_frames* | tr '\n' ' '
+
+
+
 #Local training
 #python trainer/task.py --train-files $GCS_TRAIN_FILE \
 #                       --eval-files $GCS_EVAL_FILE \
