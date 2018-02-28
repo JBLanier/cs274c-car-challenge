@@ -219,6 +219,8 @@ def main(argv):
         return (float(results[0]['loss']))
 
 
+    #TODO: Currently there is a bug with the space because the dimensions for the following layer needs to have dimensions
+    #      compatibly with the previous layer. Not sure yet how to force this with hyperopt
     space = {
         # 'c1_size_filter': hp.choice('c1_size_filter', np.arange(1,80+1, dtype=int)),
         # 'c2_size_filter': hp.choice('c2_size_filter', np.arange(1,80+1, dtype=int)),
