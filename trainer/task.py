@@ -10,6 +10,7 @@ from tensorflow.python.client import device_lib
 
 import trainer.model as model
 
+
 def get_available_gpus():
     local_device_protos = device_lib.list_local_devices()
     return [x.name for x in local_device_protos if x.device_type == 'GPU']
@@ -27,35 +28,8 @@ def calculate_conv_output_size(input_size, kernel_size, stride):
         return out_height, out_width
 
 
-
 def run_experiment(hparams):
     """Run the training and evaluate using the high level API"""
-
-    # train_file_names = get_tfrecord_file_names_from_directory(hparams.train_files[0])
-    # val_file_names = get_tfrecord_file_names_from_directory(hparams.eval_files[0])
-
-    # train_input = model.get_input_fn(input_file_names=hparams.train_files,
-    #                            batch_size=hparams.train_batch_size,
-    #                            num_epochs=hparams.num_epochs,
-    #                            shuffle=True)
-    #
-    # eval_input = model.get_input_fn(input_file_names=hparams.eval_files,
-    #                           batch_size=hparams.eval_batch_size,
-    #                           num_epochs=1,
-    #                           shuffle=False)
-    #
-    # train_spec = tf.estimator.TrainSpec(train_input,
-    #                                     max_steps=hparams.train_steps
-    #                                     )
-    #
-    # # exporter = tf.estimator.FinalExporter('car',
-    # #         model.SERVING_FUNCTIONS[hparams.export_format])
-    #
-    # eval_spec = tf.estimator.EvalSpec(eval_input,
-    #                                   steps=hparams.eval_steps,
-    #                                   exporters=[],
-    #                                   name='core'
-    #                                   )
 
     allowed_kernel_sizes = [3, 5, 7, 12]
     allowed_filter_nums = [8, 16, 24, 32]
@@ -124,7 +98,7 @@ def run_experiment(hparams):
                               shuffle=False)
 
     estimator_config = tf.estimator.RunConfig(
-        save_summary_steps=100,  # Log a training summary (training loss by default) to tensorboard every n steps
+        save_summary_steps=500,  # Log a training summary (training loss by default) to tensorboard every n steps
         save_checkpoints_steps=25000,  # Stop and save a checkpoint every n steps
         keep_checkpoint_max=50,  # How many checkpoints we save for this model before we start deleting old ones
         save_checkpoints_secs=None  # Don't save any checkpoints based on how long it's been
@@ -154,7 +128,8 @@ def run_experiment(hparams):
 
     experiment.train_and_evaluate()
 
-    print("Done (: ")
+    print("Done training and evaluating.")
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -322,8 +297,8 @@ if __name__ == '__main__':
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(
         tf.logging.__dict__[args.verbosity] / 10)
 
-    print("\n\n\nWorking with {} cores.".format(multiprocessing.cpu_count()))
-    print("GPUS:\n{}\n\n-----------".format(get_available_gpus()))
+    print("\nWorking with {} cores.".format(multiprocessing.cpu_count()))
+    print("GPUS: {}\n".format(get_available_gpus()))
 
     # Run the training job
     hparams = hparam.HParams(**args.__dict__)

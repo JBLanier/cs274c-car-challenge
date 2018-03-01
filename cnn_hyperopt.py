@@ -17,28 +17,6 @@ import sys
 
 hyperopt_eval_num = 1
 
-# class Logger(object):
-#     def __init__(self):
-#         self.terminal = sys.stdout
-#         log_name = "logs/xgboost_hyperopt_{}.log".format(datetime.datetime.now().strftime("%B_%d_%Y_%s"))
-#
-#         if not os.path.exists(os.path.dirname(log_name)):
-#             try:
-#                 os.makedirs(os.path.dirname(log_name))
-#             except OSError as exc:  # Guard against race condition
-#                 if exc.errno != errno.EEXIST:
-#                     raise
-#
-#         self.log = open(log_name, "w")
-#         print("Logging to {}\n".format(log_name))
-#
-#     def write(self, message):
-#         self.terminal.write(message)
-#         self.log.write(message)
-#
-#     def flush(self):
-#         self.log.flush()
-#         self.terminal.flush()
 
 def hyperopt_search_space_from_gcloud_yaml(yaml_file_name):
     yaml_dict = yaml.load(open(yaml_file_name))
@@ -181,6 +159,7 @@ if __name__ == "__main__":
                   + ' '.join(element for element in task_args) \
                   + ' \\\n --job-dir ' + job_dir
 
+        print('\n\n\n\n\n')
         print(hyperopt_eval_num)
         print(command)
         print()
