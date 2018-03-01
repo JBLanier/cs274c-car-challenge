@@ -8,6 +8,7 @@ small_batch/
 tf_files/
 predictions.mp4
 all/
+jobs/
 
 
 #Jupyter Notebook

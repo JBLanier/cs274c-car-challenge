@@ -115,6 +115,7 @@ def get_input_fn(input_file_names, batch_size=1, num_epochs=None, shuffle=False,
 
     return input_fn
 
+
 def get_model_fn(conv_layers, dense_units, learning_rate):
 
     def cnn_fn(features, labels, mode, params):

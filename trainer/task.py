@@ -125,7 +125,7 @@ def run_experiment(hparams):
 
     estimator_config = tf.estimator.RunConfig(
         save_summary_steps=100,  # Log a training summary (training loss by default) to tensorboard every n steps
-        save_checkpoints_steps=10000,  # Stop and save a checkpoint every n steps
+        save_checkpoints_steps=25000,  # Stop and save a checkpoint every n steps
         keep_checkpoint_max=50,  # How many checkpoints we save for this model before we start deleting old ones
         save_checkpoints_secs=None  # Don't save any checkpoints based on how long it's been
     )
@@ -143,9 +143,9 @@ def run_experiment(hparams):
 
     experiment = tf.contrib.learn.Experiment(estimator=estimator,
                                              train_input_fn=train_input,
-                                             train_steps=100,
+                                             train_steps=hparams.train_steps,
                                              eval_input_fn=eval_input,
-                                             eval_steps=None,
+                                             eval_steps=hparams.eval_steps,
                                              checkpoint_and_export=True)
 
     # Setting 'checkpoint_and_export' to 'True' will cause checkpoints to be exported every n steps according to
@@ -312,12 +312,6 @@ if __name__ == '__main__':
       """,
         default=None,
         type=int
-    )
-    parser.add_argument(
-        '--export-format',
-        help='The input format of the exported SavedModel binary',
-        choices=['JSON', 'CSV', 'EXAMPLE'],
-        default='JSON'
     )
 
     args = parser.parse_args()
