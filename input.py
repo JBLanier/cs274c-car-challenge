@@ -17,9 +17,17 @@ import player
 from fast_predict import FastPredict
 from trainer.model import cnn_fn
 
+from tensorflow.python.client import device_lib
+
+
+
 FLAGS = None
 tf.set_random_seed(42)
 
+
+def get_available_gpus():
+    local_device_protos = device_lib.list_local_devices()
+    return [x.name for x in local_device_protos if x.device_type == 'GPU']
 
 def get_tfrecord_file_names_from_directory(dir):
     dir_files = os.listdir(dir)
@@ -159,7 +167,8 @@ def main(argv):
     estimator_config = tf.estimator.RunConfig(
         save_summary_steps=100,        # Log a training summary (training loss by default) to tensorboard every n steps
         save_checkpoints_steps=10000,  # Stop and save a checkpoint every n steps
-        keep_checkpoint_max=50         # How many checkpoints we save for this model before we start deleting old ones
+        keep_checkpoint_max=50,        # How many checkpoints we save for this model before we start deleting old ones
+        save_checkpoints_secs=None     # Don't save any checkpoints based on how long it's been
     )
 
     model = tf.estimator.Estimator(
@@ -290,5 +299,13 @@ if __name__ == '__main__':
     # You may want to adjust this to be just cpu_count if you're using a server with few other processes
     FLAGS.num_parallel_img_parsers = multiprocessing.cpu_count() - 2
 
+    print("Working with {} cores.".format(multiprocessing.cpu_count()))
+
+
+
     # Any arguments not explicitly parsed by the parser code above are sent in as part of argv to main
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
+
+
+
+

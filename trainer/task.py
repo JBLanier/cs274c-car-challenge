@@ -1,11 +1,18 @@
 import argparse
-import multiprocessing
 import os
+import math
+import multiprocessing
 
 import tensorflow as tf
 from tensorflow.contrib.training.python.training import hparam
+from tensorflow.python.client import device_lib
+
 
 import trainer.model as model
+
+def get_available_gpus():
+    local_device_protos = device_lib.list_local_devices()
+    return [x.name for x in local_device_protos if x.device_type == 'GPU']
 
 
 def get_tfrecord_file_names_from_directory(dir):
@@ -14,114 +21,11 @@ def get_tfrecord_file_names_from_directory(dir):
     return list(map(lambda f: os.path.join(dir, f), dir_files))
 
 
-def _image_preprocess_fn(image_buffer, input_height, input_width, input_mean, input_std, return_full_size_image=False):
-    """Adds operations that perform JPEG decoding and resizing to the graph..
+def calculate_conv_output_size(input_size, kernel_size, stride):
+        out_height = math.ceil(float(input_size[0] - kernel_size + 1) / float(stride))
+        out_width = math.ceil(float(input_size[1] - kernel_size + 1) / float(stride))
+        return out_height, out_width
 
-        Args:
-          image_buffer: 1-D string Tensor representing the raw JPEG image buffer.
-          input_width: Desired width of the image fed into the recognizer graph.
-          input_height: Desired width of the image fed into the recognizer graph.
-          input_mean: Pixel value that should be zero in the image for the graph.
-          input_std: How much to divide the pixel values by before recognition.
-
-        Returns:
-          Tensors for the node to feed JPEG data into, and the output of the
-          prepossessing steps.
-    """
-
-    # image_buffer 1-D string Tensor representing the raw JPEG image buffer.
-
-    # Extract image shape from raw JPEG image buffer.
-    image_shape = tf.image.extract_jpeg_shape(image_buffer)
-
-    # Decode and crop image.
-    offset_x = 0
-    offset_y = image_shape[0] // 3  # We want to crop off the top fifth of the image
-    crop_width = image_shape[1]
-    crop_height = 2 * image_shape[0] // 3
-    crop_window = tf.stack([offset_y, offset_x, crop_height, crop_width])
-    cropped_image = tf.image.decode_and_crop_jpeg(image_buffer, crop_window, channels=3)
-
-    # Resize image.
-    # decoded_image_as_float = tf.cast(decoded_image, dtype=tf.float32)
-    decoded_image_4d = tf.expand_dims(cropped_image, 0)
-    resize_shape = tf.stack([input_height, input_width])
-    resize_shape_as_int = tf.cast(resize_shape, dtype=tf.int32)
-    resized_image = tf.image.resize_bilinear(decoded_image_4d, resize_shape_as_int)
-
-    # Normalize image
-    offset_image = tf.subtract(resized_image, input_mean)
-    mul_image = tf.multiply(offset_image, 1.0 / input_std)
-
-    if return_full_size_image:
-        return tf.squeeze(mul_image, axis=0), cropped_image
-
-    return tf.squeeze(mul_image, axis=0)
-
-
-def get_input_fn(input_file_names, batch_size=1, num_epochs=None, shuffle=False, shard_size=3000,
-                 return_full_size_image=False):
-    """Creates input_fn according to parameters
-
-        Args:
-            input_file_names: (Ordered) List of TFRecord file names to parse data from.
-            batch_size: Number of entries to be returned by a single call to the produced input_fn
-            num_epochs: Max number of iterations allowed over the entire dataset (Use 'None' for no limit)
-            shuffle: 'True' to shuffle the data or 'False' to keep order.
-            shard_size: Average number of data points per shard (needs to be accurate for shuffle to work well)
-            return_full_size_image: (For debugging) 'True' causes input_fn to return 3 tensors:
-                (preprocessed_image, target_label, full_size_image) rather than the normal behavior of
-                just returning the first two.
-
-        Returns:
-            input_fn that returns a batch of features and labels upon every call to it.
-    """
-
-    def parse_fn(example):
-        """Parse TFExample records and perform simple data augmentation."""
-
-        example_fmt = {
-            "image": tf.FixedLenFeature((), tf.string),
-            "target": tf.FixedLenFeature((), tf.float32, -1)
-        }
-        parsed = tf.parse_single_example(example, example_fmt)
-
-        if return_full_size_image:
-            preprocessed_image, full_size_image = _image_preprocess_fn(
-                image_buffer=parsed["image"], input_height=66, input_width=200, input_mean=128,
-                input_std=128, return_full_size_image=True)
-            return preprocessed_image, parsed["target"], full_size_image
-
-        preprocessed_image = _image_preprocess_fn(image_buffer=parsed["image"], input_height=66, input_width=200,
-                                                  input_mean=128, input_std=128)
-
-        return preprocessed_image, parsed["target"]
-
-    def input_fn():
-        file_names = tf.constant(input_file_names, dtype=tf.string, name='input_file_names')
-
-        if shuffle:
-            num_shards = len(input_file_names)
-
-            files = tf.data.Dataset.from_tensor_slices(file_names).shuffle(num_shards)
-            dataset = files.interleave(tf.data.TFRecordDataset, cycle_length=3)
-            dataset = dataset.shuffle(buffer_size=shard_size * 2)
-
-        else:
-            dataset = tf.data.TFRecordDataset(file_names)
-
-        dataset = dataset.map(map_func=parse_fn, num_parallel_calls=multiprocessing.cpu_count())
-        dataset = dataset.batch(batch_size=batch_size)
-        dataset = dataset.repeat(num_epochs)  # the input is repeated indefinitely if num_epochs is None
-        dataset = dataset.prefetch(buffer_size=64)
-
-        # print("Dataset ouput types: {}".format(dataset.output_types))
-        # print("Dataset ouput shapes: {}".format(dataset.output_shapes))
-
-        iterator = dataset.make_one_shot_iterator()
-        return iterator.get_next()
-
-    return input_fn
 
 
 def run_experiment(hparams):
@@ -130,28 +34,28 @@ def run_experiment(hparams):
     # train_file_names = get_tfrecord_file_names_from_directory(hparams.train_files[0])
     # val_file_names = get_tfrecord_file_names_from_directory(hparams.eval_files[0])
 
-    train_input = get_input_fn(input_file_names=hparams.train_files,
-                               batch_size=hparams.train_batch_size,
-                               num_epochs=hparams.num_epochs,
-                               shuffle=True)
-
-    eval_input = get_input_fn(input_file_names=hparams.eval_files,
-                              batch_size=hparams.eval_batch_size,
-                              num_epochs=1,
-                              shuffle=False)
-
-    train_spec = tf.estimator.TrainSpec(train_input,
-                                        max_steps=hparams.train_steps
-                                        )
-
-    # exporter = tf.estimator.FinalExporter('car',
-    #         model.SERVING_FUNCTIONS[hparams.export_format])
-
-    eval_spec = tf.estimator.EvalSpec(eval_input,
-                                      steps=hparams.eval_steps,
-                                      exporters=[],
-                                      name='core'
-                                      )
+    # train_input = model.get_input_fn(input_file_names=hparams.train_files,
+    #                            batch_size=hparams.train_batch_size,
+    #                            num_epochs=hparams.num_epochs,
+    #                            shuffle=True)
+    #
+    # eval_input = model.get_input_fn(input_file_names=hparams.eval_files,
+    #                           batch_size=hparams.eval_batch_size,
+    #                           num_epochs=1,
+    #                           shuffle=False)
+    #
+    # train_spec = tf.estimator.TrainSpec(train_input,
+    #                                     max_steps=hparams.train_steps
+    #                                     )
+    #
+    # # exporter = tf.estimator.FinalExporter('car',
+    # #         model.SERVING_FUNCTIONS[hparams.export_format])
+    #
+    # eval_spec = tf.estimator.EvalSpec(eval_input,
+    #                                   steps=hparams.eval_steps,
+    #                                   exporters=[],
+    #                                   name='core'
+    #                                   )
 
     allowed_kernel_sizes = [3, 5, 7, 12]
     allowed_filter_nums = [8, 16, 24, 32]
@@ -167,38 +71,88 @@ def run_experiment(hparams):
     for i in range(hparams.num_kernal_size_decrements):
         decrement_layer = int((hparams.last_decrement_layer / (i + 1)) * hparams.num_conv_layers)
         kernel_decrement_layers.append(decrement_layer)
-    print("\n-----KD LAYERS")
-    print(kernel_decrement_layers)
 
+    print("{} Convolutional Layers Requested".format(hparams.num_conv_layers))
+    print("\n-----Kernal Decrements will be performed at layers: {}".format(kernel_decrement_layers))
+
+    input_size = (66, 200)
+
+    print("\n-----CONV LAYERS: ")
     for i in range(hparams.num_conv_layers):
+        if input_size[0] < kernel_size or input_size[1] < kernel_size:
+            print("\nNo more conv layers will be made because the next input size {} is too small for kernel size {}"
+                  .format(input_size, kernel_size))
+            break
+
         conv_layers.append((kernel_size, filter_num, stride))
 
+        print("\n--Layer {}\nInput Size: {} Kernel Size: {} Num Filters: {} Stride: {}"
+              .format(i+1, input_size, kernel_size, filter_num, stride))
+
+        input_size = calculate_conv_output_size(input_size, kernel_size, stride)
+        print("  Output Size {}".format(input_size))
+
         if i+1 in kernel_decrement_layers:
-            print("decrementing kernel size")
+            print("  (decrementing kernel size/stride after this layer)")
             kernel_size = allowed_kernel_sizes[max(0, allowed_kernel_sizes.index(kernel_size)-1)]
             stride = allowed_strides[max(0, allowed_strides.index(stride)-1)]
 
         filter_num = int(filter_num * max(1, filter_num_scale_factor))
         filter_num_scale_factor = filter_num_scale_factor * hparams.filter_num_scale_decay
 
-    print("\n-----CONV LAYERS: ")
-    for layer in conv_layers:
-        print(layer)
+    print("{} Dense Layers Requested".format(hparams.num_dense_layers))
+    print("\n-----Dense LAYERS: ")
+    dense_units = []
+    for i in range(hparams.num_dense_layers):
+        units = max(1, int(hparams.first_dense_layer_size * hparams.dense_scale_factor ** i))
+        if units == 1:
+            print("\nNo more dense layers will be made because the next hidden layer would only have one neuron.")
+            break
+        dense_units.append(units)
+
+    print(dense_units)
+    print()
+
+    train_input = model.get_input_fn(input_file_names=hparams.train_files,
+                               batch_size=hparams.train_batch_size,
+                               num_epochs=hparams.num_epochs,
+                               shuffle=True)
+
+    eval_input = model.get_input_fn(input_file_names=hparams.eval_files,
+                              batch_size=hparams.eval_batch_size,
+                              num_epochs=1,
+                              shuffle=False)
+
+    estimator_config = tf.estimator.RunConfig(
+        save_summary_steps=100,  # Log a training summary (training loss by default) to tensorboard every n steps
+        save_checkpoints_steps=10000,  # Stop and save a checkpoint every n steps
+        keep_checkpoint_max=50,  # How many checkpoints we save for this model before we start deleting old ones
+        save_checkpoints_secs=None  # Don't save any checkpoints based on how long it's been
+    )
 
     model_fn = model.get_model_fn(
         conv_layers=conv_layers,
         # Construct dense layer sizes with exponential decay
-        dense_units=[max(1, int(hparams.first_dense_layer_size * hparams.dense_scale_factor ** i))
-                     for i in range(hparams.num_dense_layers)],
+        dense_units=dense_units,
         learning_rate=hparams.learning_rate)
 
     estimator = tf.estimator.Estimator(model_fn=model_fn,
                                        model_dir=hparams.job_dir,
-                                       params={'model_dir': hparams.job_dir})
+                                       params={'model_dir': hparams.job_dir},
+                                       config=estimator_config)
 
-    tf.estimator.train_and_evaluate(estimator,
-                                    train_spec,
-                                    eval_spec)
+    experiment = tf.contrib.learn.Experiment(estimator=estimator,
+                                             train_input_fn=train_input,
+                                             train_steps=100,
+                                             eval_input_fn=eval_input,
+                                             eval_steps=None,
+                                             checkpoint_and_export=True)
+
+    # Setting 'checkpoint_and_export' to 'True' will cause checkpoints to be exported every n steps according to
+    #   'save_checkpoints_steps' in the estimator's config. It will also cause experiment.train_and_evaluate() to
+    #   run it's evaluation step (for us that's validation) whenever said checkpoints are exported.
+
+    experiment.train_and_evaluate()
 
     print("Done (: ")
 
@@ -288,28 +242,28 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        '--num_kernal_size_decrements',
+        '--num-kernal-size-decrements',
         help='',
         default=1,
         type=int
     )
 
     parser.add_argument(
-        '--last_decrement_layer',
+        '--last-decrement-layer',
         help='',
         default=0.6,
         type=float
     )
 
     parser.add_argument(
-        '--first_dense_layer_size',
+        '--first-dense-layer-size',
         help='',
         default=1200,
         type=int
     )
 
     parser.add_argument(
-        '--num_dense_layers',
+        '--num-dense-layers',
         help='',
         default=4,
         type=int
@@ -373,6 +327,9 @@ if __name__ == '__main__':
     # Set C++ Graph Execution level verbosity
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(
         tf.logging.__dict__[args.verbosity] / 10)
+
+    print("\n\n\nWorking with {} cores.".format(multiprocessing.cpu_count()))
+    print("GPUS:\n{}\n\n-----------".format(get_available_gpus()))
 
     # Run the training job
     hparams = hparam.HParams(**args.__dict__)

@@ -1,78 +1,79 @@
 trainingInput:
+  pythonVersion: "3.5"
   hyperparameters:
-    goal: MAXIMIZE
-    hyperparameterMetricTag: accuracy
+    goal: MINIMIZE
+    hyperparameterMetricTag: validation_rmse
     maxTrials: 4
-    maxParallelTrials: 2
+    maxParallelTrials: 1
     enableTrialEarlyStopping: True
     params:
 
       # CONV
 
-      - parameterName: num_conv_layers
+      - parameterName: num-conv-layers
         type: INTEGER
         minValue: 3
         maxValue: 8
         scaleType: UNIT_LINEAR_SCALE
 
-      - parameterName: conv1_kernel_size
+      - parameterName: conv1-kernel-size
         type: INTEGER # 3,5,7,12
         minValue: 0
         maxValue: 3
         scaleType: UNIT_LINEAR_SCALE
 
 
-      - parameterName: conv1_filter_num
+      - parameterName: conv1-filter-num
         type: INTEGER # 8,16,24,32
         minValue: 0
         maxValue: 3
         scaleType: UNIT_LINEAR_SCALE
 
-      - parameterName: conv1_stride
+      - parameterName: conv1-stride
         type: INTEGER # 1,2,4
         minValue: 0
         maxValue: 2
         scaleType: UNIT_LINEAR_SCALE
 
-      - parameterName: filter_num_scale_factor
+      - parameterName: filter-num-scale-factor
         type: DOUBLE
         minValue: 1.0
         maxValue: 2.0
         scaleType: UNIT_LOG_SCALE
 
-      - parameterName: filter_num_scale_decay
+      - parameterName: filter-num-scale-decay
         type: DOUBLE
-        minValue: 0.0
+        minValue: 0.001
         maxValue: 1.0
         scaleType: UNIT_LOG_SCALE
 
-      - parameterName: num_kernal_size_decrements
+      - parameterName: num-kernal-size-decrements
         type: INTEGER
         minValue: 0
         maxValue: 2
         scaleType: UNIT_LINEAR_SCALE
 
-      - parameterName: last_decrement_layer
+      - parameterName: last-decrement-layer
         type: DOUBLE
-        minValue: 0.0
+        minValue: 0.001
         maxValue: 1.0
         scaleType: UNIT_LOG_SCALE
 
       # DENSE
 
-      - parameterName: first_dense_layer_size
+      - parameterName: first-dense-layer-size
         type: INTEGER
         minValue: 500
         maxValue: 2000
         scaleType: UNIT_LINEAR_SCALE
 
-      - parameterName: num_dense_layers
+      - parameterName: num-dense-layers
         type: INTEGER
         minValue: 1
         maxValue: 10
         scaleType: UNIT_LINEAR_SCALE
 
-      - parameterName: dense_scale_factor
+      - parameterName: dense-scale-factor
         type: DOUBLE
         minValue: 0.1
         maxValue: 1.0
