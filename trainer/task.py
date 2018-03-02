@@ -2,6 +2,7 @@ import argparse
 import os
 import math
 import multiprocessing
+import glob
 
 import tensorflow as tf
 from tensorflow.contrib.training.python.training import hparam
@@ -97,36 +98,68 @@ def run_experiment(hparams):
                               num_epochs=1,
                               shuffle=False)
 
-    estimator_config = tf.estimator.RunConfig(
-        save_summary_steps=500,  # Log a training summary (training loss by default) to tensorboard every n steps
-        save_checkpoints_steps=25000,  # Stop and save a checkpoint every n steps
-        keep_checkpoint_max=50,  # How many checkpoints we save for this model before we start deleting old ones
-        save_checkpoints_secs=None  # Don't save any checkpoints based on how long it's been
-    )
-
     model_fn = model.get_model_fn(
         conv_layers=conv_layers,
         # Construct dense layer sizes with exponential decay
         dense_units=dense_units,
         learning_rate=hparams.learning_rate)
 
-    estimator = tf.estimator.Estimator(model_fn=model_fn,
-                                       model_dir=hparams.job_dir,
-                                       params={'model_dir': hparams.job_dir},
-                                       config=estimator_config)
+    if hparams.save_checkpoints:
 
-    experiment = tf.contrib.learn.Experiment(estimator=estimator,
-                                             train_input_fn=train_input,
-                                             train_steps=hparams.train_steps,
-                                             eval_input_fn=eval_input,
-                                             eval_steps=hparams.eval_steps,
-                                             checkpoint_and_export=True)
+        estimator_config = tf.estimator.RunConfig(
+            save_summary_steps=100,  # Log a training summary (training loss by default) to tensorboard every n steps
+            save_checkpoints_steps=25000,  # Stop and save a checkpoint every n steps
+            keep_checkpoint_max=1,  # How many checkpoints we save for this model before we start deleting old ones
+            save_checkpoints_secs=None  # Don't save any checkpoints based on how long it's been
+        )
 
-    # Setting 'checkpoint_and_export' to 'True' will cause checkpoints to be exported every n steps according to
-    #   'save_checkpoints_steps' in the estimator's config. It will also cause experiment.train_and_evaluate() to
-    #   run it's evaluation step (for us that's validation) whenever said checkpoints are exported.
+        estimator = tf.estimator.Estimator(model_fn=model_fn,
+                                           model_dir=hparams.job_dir,
+                                           params={'model_dir': hparams.job_dir},
+                                           config=estimator_config)
 
-    experiment.train_and_evaluate()
+        experiment = tf.contrib.learn.Experiment(estimator=estimator,
+                                                 train_input_fn=train_input,
+                                                 train_steps=hparams.train_steps,
+                                                 eval_input_fn=eval_input,
+                                                 eval_steps=hparams.eval_steps,
+                                                 checkpoint_and_export=True)
+
+        # Setting 'checkpoint_and_export' to 'True' will cause checkpoints to be exported every n steps according to
+        #   'save_checkpoints_steps' in the estimator's config. It will also cause experiment.train_and_evaluate() to
+        #   run it's evaluation step (for us that's validation) whenever said checkpoints are exported.
+
+        experiment.train_and_evaluate()
+
+    else:
+
+        estimator_config = tf.estimator.RunConfig(
+            save_summary_steps=100,  # Log a training summary (training loss by default) to tensorboard every n steps
+            log_step_count_steps=100,
+            save_checkpoints_steps=50000,  # Stop and save a checkpoint every n steps
+            keep_checkpoint_max=1,  # How many checkpoints we save for this model before we start deleting old ones
+            save_checkpoints_secs=None  # Don't save any checkpoints based on how long it's been
+        )
+
+        estimator = tf.estimator.Estimator(model_fn=model_fn,
+                                           model_dir=hparams.job_dir,
+                                           params={'model_dir': hparams.job_dir},
+                                           config=estimator_config)
+
+        estimator.train(input_fn=train_input, steps=hparams.train_steps)
+        estimator.evaluate(input_fn=eval_input,
+                           steps=hparams.eval_steps,
+                           checkpoint_path=None,
+                           name='intermediate_export')
+
+        print("Removing Checkpoints")
+        if hparams.job_dir is None or len(hparams.job_dir) == 0:
+            print("\n\n\nERROR, JOB_DIR is empty or None")
+            exit(1)
+
+        for filename in glob.glob("{}/model*".format(hparams.job_dir)):
+            os.remove(filename)
+        os.remove("{}/checkpoint".format(hparams.job_dir))
 
     print("Done training and evaluating.")
 
@@ -140,6 +173,13 @@ if __name__ == '__main__':
         nargs='+',
         required=True
     )
+
+    parser.add_argument(
+        '--save-checkpoints',
+        help='',
+        type=bool,
+    )
+
     parser.add_argument(
         '--num-epochs',
         help="""\

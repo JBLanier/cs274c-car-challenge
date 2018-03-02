@@ -160,7 +160,7 @@ if __name__ == "__main__":
                   + ' \\\n --job-dir ' + job_dir
 
         print('\n\n\n\n\n')
-        print(hyperopt_eval_num)
+        print("Trial {}".format(hyperopt_eval_num))
         print(command)
         print()
 
@@ -196,6 +196,8 @@ if __name__ == "__main__":
                 # -- store other results like this
                 'params': params
             }
+
+    print("\n\n\n\nHyperparameter Tuning Jobs Dir: {}".format(args.jobs_dir))
 
     trials = Trials()
     best_params = fmin(fn=objective,

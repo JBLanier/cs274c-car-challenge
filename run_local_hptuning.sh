@@ -19,5 +19,7 @@ python -u cnn_hyperopt.py \
 -- \
 --train-files $TRAIN_FILES \
 --eval-files $EVAL_FILES \
---train-steps 50000 \
+--num-epochs 10 \
+--train-batch-size 32 \
+--verbosity 'INFO' \
 2>&1 | tee $OUTPUT_DIR/output.log
