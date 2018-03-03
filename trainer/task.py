@@ -108,8 +108,8 @@ def run_experiment(hparams):
 
         estimator_config = tf.estimator.RunConfig(
             save_summary_steps=100,  # Log a training summary (training loss by default) to tensorboard every n steps
-            save_checkpoints_steps=25000,  # Stop and save a checkpoint every n steps
-            keep_checkpoint_max=1,  # How many checkpoints we save for this model before we start deleting old ones
+            save_checkpoints_steps=10000,  # Stop and save a checkpoint every n steps
+            keep_checkpoint_max=50,  # How many checkpoints we save for this model before we start deleting old ones
             save_checkpoints_secs=None  # Don't save any checkpoints based on how long it's been
         )
 

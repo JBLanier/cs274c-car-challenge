@@ -191,6 +191,7 @@ if __name__ == "__main__":
                 'fdsfsd': objective_summaries[-1]
             }
         else:
+            print("TRIAL FAILED\n")
             return {
                 'status': STATUS_FAIL,
                 # -- store other results like this

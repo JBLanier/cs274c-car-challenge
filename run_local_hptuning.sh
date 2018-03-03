@@ -21,5 +21,5 @@ python -u cnn_hyperopt.py \
 --eval-files $EVAL_FILES \
 --num-epochs 10 \
 --train-batch-size 32 \
---verbosity 'INFO' \
+--verbosity 'WARN' \
 2>&1 | tee $OUTPUT_DIR/output.log
