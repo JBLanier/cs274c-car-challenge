@@ -80,8 +80,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    print(vars(args))
-
     task_args = args.task_args[1:]
 
     # def evaluate_classifier(n_estimators, learning_rate, subsample, colsample_bytree, max_depth, min_child_weight,
@@ -191,6 +189,17 @@ if __name__ == "__main__":
                 'fdsfsd': objective_summaries[-1]
             }
         else:
+
+            print("Removing Checkpoints")
+            if job_dir is None or len(job_dir) == 0:
+                print("\n\n\nERROR, JOB_DIR is empty or None")
+                exit(1)
+
+            for filename in glob.glob("{}/model*".format(job_dir)):
+                os.remove(filename)
+            for filename in glob.glob("{}/checkpoint".format(job_dir)):
+                os.remove(filename)
+
             print("TRIAL FAILED\n")
             return {
                 'status': STATUS_FAIL,
@@ -198,7 +207,7 @@ if __name__ == "__main__":
                 'params': params
             }
 
-    print("\n\n\n\nHyperparameter Tuning Jobs Dir: {}".format(args.jobs_dir))
+    print("\n\n\n\nMonitor With: tensorboard --logdir {}".format(args.jobs_dir))
 
     trials = Trials()
     best_params = fmin(fn=objective,

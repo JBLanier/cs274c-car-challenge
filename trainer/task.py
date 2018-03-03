@@ -5,6 +5,7 @@ import multiprocessing
 import glob
 
 import tensorflow as tf
+from trainer.low_performance_stop_hook import LowPerformanceStopHook
 from tensorflow.contrib.training.python.training import hparam
 from tensorflow.python.client import device_lib
 
@@ -75,7 +76,7 @@ def run_experiment(hparams):
         filter_num = int(filter_num * max(1, filter_num_scale_factor))
         filter_num_scale_factor = filter_num_scale_factor * hparams.filter_num_scale_decay
 
-    print("{} Dense Layers Requested".format(hparams.num_dense_layers))
+    print("\n{} Dense Layers Requested".format(hparams.num_dense_layers))
     print("\n-----Dense LAYERS: ")
     dense_units = []
     for i in range(hparams.num_dense_layers):
@@ -104,54 +105,60 @@ def run_experiment(hparams):
         dense_units=dense_units,
         learning_rate=hparams.learning_rate)
 
+    keep_checkpoints_max = 1
     if hparams.save_checkpoints:
+        keep_checkpoints_max = 10
 
-        estimator_config = tf.estimator.RunConfig(
-            save_summary_steps=100,  # Log a training summary (training loss by default) to tensorboard every n steps
-            save_checkpoints_steps=10000,  # Stop and save a checkpoint every n steps
-            keep_checkpoint_max=50,  # How many checkpoints we save for this model before we start deleting old ones
-            save_checkpoints_secs=None  # Don't save any checkpoints based on how long it's been
-        )
+    estimator_config = tf.estimator.RunConfig(
+        save_summary_steps=100,  # Log a training summary (training loss by default) to tensorboard every n steps
+        save_checkpoints_steps=10000,  # Stop and save a checkpoint every n steps
+        keep_checkpoint_max=keep_checkpoints_max,  # How many checkpoints we save for this model before we start deleting old ones
+        save_checkpoints_secs=None  # Don't save any checkpoints based on how long it's been
+    )
 
-        estimator = tf.estimator.Estimator(model_fn=model_fn,
-                                           model_dir=hparams.job_dir,
-                                           params={'model_dir': hparams.job_dir},
-                                           config=estimator_config)
+    # kills the process if it runs too slow
+    low_perf_hook = LowPerformanceStopHook(min_steps_per_sec=640/hparams.train_batch_size)
 
-        experiment = tf.contrib.learn.Experiment(estimator=estimator,
-                                                 train_input_fn=train_input,
-                                                 train_steps=hparams.train_steps,
-                                                 eval_input_fn=eval_input,
-                                                 eval_steps=hparams.eval_steps,
-                                                 checkpoint_and_export=True)
+    estimator = tf.estimator.Estimator(model_fn=model_fn,
+                                       model_dir=hparams.job_dir,
+                                       params={'model_dir': hparams.job_dir},
+                                       config=estimator_config)
 
-        # Setting 'checkpoint_and_export' to 'True' will cause checkpoints to be exported every n steps according to
-        #   'save_checkpoints_steps' in the estimator's config. It will also cause experiment.train_and_evaluate() to
-        #   run it's evaluation step (for us that's validation) whenever said checkpoints are exported.
+    experiment = tf.contrib.learn.Experiment(estimator=estimator,
+                                             train_input_fn=train_input,
+                                             train_steps=hparams.train_steps,
+                                             eval_input_fn=eval_input,
+                                             eval_steps=hparams.eval_steps,
+                                             train_monitors=[low_perf_hook],
+                                             checkpoint_and_export=True)
 
-        experiment.train_and_evaluate()
+    # Setting 'checkpoint_and_export' to 'True' will cause checkpoints to be exported every n steps according to
+    #   'save_checkpoints_steps' in the estimator's config. It will also cause experiment.train_and_evaluate() to
+    #   run it's evaluation step (for us that's validation) whenever said checkpoints are exported.
 
-    else:
+    experiment.train_and_evaluate()
 
-        estimator_config = tf.estimator.RunConfig(
-            save_summary_steps=100,  # Log a training summary (training loss by default) to tensorboard every n steps
-            log_step_count_steps=100,
-            save_checkpoints_steps=50000,  # Stop and save a checkpoint every n steps
-            keep_checkpoint_max=1,  # How many checkpoints we save for this model before we start deleting old ones
-            save_checkpoints_secs=None  # Don't save any checkpoints based on how long it's been
-        )
+    #
+    # estimator_config = tf.estimator.RunConfig(
+    #     save_summary_steps=100,  # Log a training summary (training loss by default) to tensorboard every n steps
+    #     log_step_count_steps=100,
+    #     save_checkpoints_steps=50000,  # Stop and save a checkpoint every n steps
+    #     keep_checkpoint_max=1,  # How many checkpoints we save for this model before we start deleting old ones
+    #     save_checkpoints_secs=None  # Don't save any checkpoints based on how long it's been
+    # )
+    #
+    # estimator = tf.estimator.Estimator(model_fn=model_fn,
+    #                                    model_dir=hparams.job_dir,
+    #                                    params={'model_dir': hparams.job_dir},
+    #                                    config=estimator_config)
+    #
+    # estimator.train(input_fn=train_input, steps=hparams.train_steps)
+    # estimator.evaluate(input_fn=eval_input,
+    #                    steps=hparams.eval_steps,
+    #                    checkpoint_path=None,
+    #                    name='intermediate_export')
 
-        estimator = tf.estimator.Estimator(model_fn=model_fn,
-                                           model_dir=hparams.job_dir,
-                                           params={'model_dir': hparams.job_dir},
-                                           config=estimator_config)
-
-        estimator.train(input_fn=train_input, steps=hparams.train_steps)
-        estimator.evaluate(input_fn=eval_input,
-                           steps=hparams.eval_steps,
-                           checkpoint_path=None,
-                           name='intermediate_export')
-
+    if not hparams.save_checkpoints:
         print("Removing Checkpoints")
         if hparams.job_dir is None or len(hparams.job_dir) == 0:
             print("\n\n\nERROR, JOB_DIR is empty or None")
