@@ -3,6 +3,7 @@ import os
 import math
 import multiprocessing
 import glob
+import shutil
 
 import tensorflow as tf
 from trainer.low_performance_stop_hook import LowPerformanceStopHook
@@ -12,6 +13,15 @@ from tensorflow.python.client import device_lib
 
 import trainer.model as model
 
+
+def remove(path):
+    """ param <path> could either be relative or absolute. """
+    if os.path.isfile(path):
+        os.remove(path)  # remove the file
+    elif os.path.isdir(path):
+        shutil.rmtree(path)  # remove dir and all contains
+    else:
+        raise ValueError("file {} is not a file or dir.".format(path))
 
 def get_available_gpus():
     local_device_protos = device_lib.list_local_devices()
@@ -165,8 +175,9 @@ def run_experiment(hparams):
             exit(1)
 
         for filename in glob.glob("{}/model*".format(hparams.job_dir)):
-            os.remove(filename)
-        os.remove("{}/checkpoint".format(hparams.job_dir))
+            remove(filename)
+        for filename in glob.glob("{}/checkpoint".format(hparams.job_dir)):
+            remove(filename)
 
     print("Done training and evaluating.")
 

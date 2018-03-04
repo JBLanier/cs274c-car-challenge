@@ -10,6 +10,7 @@ import tensorflow as tf
 import argparse
 import subprocess
 import glob
+import shutil
 
 from hyperopt import fmin, tpe, hp, STATUS_OK, STATUS_FAIL, Trials, space_eval
 
@@ -17,6 +18,14 @@ import sys
 
 hyperopt_eval_num = 1
 
+def remove(path):
+    """ param <path> could either be relative or absolute. """
+    if os.path.isfile(path):
+        os.remove(path)  # remove the file
+    elif os.path.isdir(path):
+        shutil.rmtree(path)  # remove dir and all contains
+    else:
+        raise ValueError("file {} is not a file or dir.".format(path))
 
 def hyperopt_search_space_from_gcloud_yaml(yaml_file_name):
     yaml_dict = yaml.load(open(yaml_file_name))
@@ -196,9 +205,9 @@ if __name__ == "__main__":
                 exit(1)
 
             for filename in glob.glob("{}/model*".format(job_dir)):
-                os.remove(filename)
+                remove(filename)
             for filename in glob.glob("{}/checkpoint".format(job_dir)):
-                os.remove(filename)
+                remove(filename)
 
             print("TRIAL FAILED\n")
             return {
