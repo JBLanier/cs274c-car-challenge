@@ -6,21 +6,14 @@ import tensorflow as tf
 
 
 def rnn_fn(features, labels, mode, params):
-    sequence_length = params["sequence_length"]
-
-    LSTM_SIZE = 200  # number of hidden layers in each of the LSTM cells
+    sequence_length = params.get("sequence_length", 20)
+    rnn_size = params.get("hidden_units", 200)
+    stateful = params.get("statefule")
 
     if isinstance(features, dict):
         features = features['x']
 
-    # features = tf.placeholder_with_default(features,[16,20,66,200,3])
-
     features = tf.reshape(features, [-1, features.shape[-3], features.shape[-2], features.shape[-1]])
-
-    # conv1 = tf.layers.conv3d(features, 24, 5, strides=(1, 2, 2), padding='valid', activation=tf.nn.relu, name='conv1')
-    # conv2 = tf.layers.conv3d(conv1, 48, 5, strides=(1, 2, 2), padding='valid', activation=tf.nn.relu, name='conv2')
-    # conv3 = tf.layers.conv3d(conv2, 64, 5, strides=(1, 2, 2), padding='valid', activation=tf.nn.relu, name='conv3')
-
 
     conv1 = tf.layers.conv2d(features, 24, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv1')
     conv2 = tf.layers.conv2d(conv1, 36, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv2')
@@ -28,27 +21,37 @@ def rnn_fn(features, labels, mode, params):
     conv4 = tf.layers.conv2d(conv3, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
     conv5 = tf.layers.conv2d(conv4, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
 
-    # flatten feature maps into a single vector [? (batch_size), feature map size]
-    # flattened = tf.layers.flatten(conv5)
-    print("SHAPE CONV5 {}".format(conv5))
+    if self.stateful is True:
+        init_states = multicell.zero_state(self.batch_size, tf.float32)
+        init_states = tf.identity(init_states, "init_states")
+
+        l = tf.unstack(init_states, axis=0)
+        rnn_tuple_state = tuple([tf.nn.rnn_cell.LSTMStateTuple(l[idx][0], l[idx][1]) for idx in range(self.rnn_layers)])
+
+    else:
+        rnn_tuple_state = multicell.zero_state(self.batch_size, tf.float32)
+
+    # Unroll RNN
+    output, output_states = tf.nn.dynamic_rnn(multicell, inputs=inputs, initial_state=rnn_tuple_state)
+
+    if self.stateful is True:
+        output_states = tf.identity(output_states, "output_states")
+        return output
 
     flattened = tf.layers.flatten(conv5)
     sequenced = tf.reshape(flattened, [-1, sequence_length, flattened.shape[1]])
+    rnn_cell = tf.nn.rnn_cell.BasicRNNCell(rnn_size)
+    initial_state = rnn_cell.zero_state(1, dtype=tf.float32)
+    initial_state = tf.identity(initial_state, name="RNN/init_states")
+    rnn_outputs, rnn_out_state = tf.nn.dynamic_rnn(rnn_cell, sequenced, dtype=tf.float32)
+    rnn_out_state = tf.identity(rnn_out_state, name="RNN/output_states")
+    rnn_outputs = tf.reshape(rnn_outputs, [-1, rnn_size])
 
-    rnn_cell = tf.nn.rnn_cell.BasicRNNCell(LSTM_SIZE)
-    # initial_state = rnn_cell.zero_state(x.shape[0], dtype=tf.float32)
-    lstm_outputs, lstm_out_state = tf.nn.dynamic_rnn(rnn_cell, sequenced, dtype=tf.float32)
-    print("lstm_outputs shape: {}".format(lstm_outputs.shape))
-    print("lstm_out_state shape: {}".format(lstm_out_state.shape))
-    lstm_outputs = tf.reshape(lstm_outputs, [-1, LSTM_SIZE])
-    print("lstm_outputs shape (reshaped): {}".format(lstm_outputs.shape))
-
-    predictions = tf.squeeze(tf.layers.dense(lstm_outputs, units=1, activation=None),1)
+    predictions = tf.squeeze(tf.layers.dense(rnn_outputs, units=1, activation=None), 1)
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         # In `PREDICT` mode we only need to return predictions.
-        return tf.estimator.EstimatorSpec(
-            mode=mode, predictions={'angle': predictions})
+        return tf.estimator.EstimatorSpec(mode=mode, predictions={'angle': predictions})
 
     # Calculate loss using mean squared error
     mean_squared_error = tf.losses.mean_squared_error(labels=tf.reshape(labels, [-1]), predictions=predictions)
@@ -62,11 +65,8 @@ def rnn_fn(features, labels, mode, params):
     if mode == tf.estimator.ModeKeys.TRAIN:
         optimizer = params.get("optimizer", tf.train.AdamOptimizer)
         optimizer = optimizer(params.get("learning_rate", None))
-        train_op = optimizer.minimize(
-            loss=mean_squared_error, global_step=tf.train.get_global_step())
-
-        return tf.estimator.EstimatorSpec(
-            mode=mode, loss=root_mean_squared_error, train_op=train_op)
+        train_op = optimizer.minimize(loss=mean_squared_error, global_step=tf.train.get_global_step())
+        return tf.estimator.EstimatorSpec(mode=mode, loss=root_mean_squared_error, train_op=train_op)
 
     # In evaluation mode we will calculate evaluation metrics.
     assert mode == tf.estimator.ModeKeys.EVAL

@@ -12,21 +12,10 @@ import os
 import sys
 import multiprocessing
 import cv2
-
-from transfer_learning import transfer_learning_cnn_fn
 from rnn import rnn_fn
 import player
 import data
 from fast_predict import FastPredict
-
-from tensorflow.contrib.learn import DynamicRnnEstimator
-from tensorflow.contrib.learn.python.learn.estimators.constants import (
-    ProblemType,
-)
-from tensorflow.contrib.learn.python.learn.estimators.rnn_common import (
-    PredictionType,
-)
-from tensorflow.contrib.layers import real_valued_column
 
 FLAGS = None
 tf.set_random_seed(42)
@@ -38,29 +27,25 @@ def get_tfrecord_file_names_from_directory(dir):
     return list(map(lambda f: os.path.join(dir, f), dir_files))
 
 def main(argv):
-
     train_file_names = get_tfrecord_file_names_from_directory(FLAGS.train_dir)
     val_file_names = get_tfrecord_file_names_from_directory(FLAGS.val_dir)
-
     sequence_length = 20
-
-    train_input_fn = data.get_input_fn(input_file_names = train_file_names,
-                                  batch_size = 16,
-                                  num_epochs = 20,
-                                  shuffle = False,
-                                  window_size=sequence_length,
-                                  stride=5)
+    train_input_fn = data.get_input_fn(input_file_names=train_file_names,
+                                       batch_size=16,
+                                       num_epochs=20,
+                                       shuffle=False,
+                                       window_size=sequence_length,
+                                       stride=5)
 
     val_input_fn = data.get_input_fn(input_file_names=val_file_names,
-                                batch_size=16,
-                                num_epochs=None,
-                                shuffle=False,
-                                window_size=sequence_length,
-                                stride=5
-                                     )
+                                     batch_size=16,
+                                     num_epochs=None,
+                                     shuffle=False,
+                                     window_size=sequence_length,
+                                     stride=5)
 
     # Arbitrarily sticking a timestamp on the model_dirs to make each run different
-    #   - probably want this to be hyperparameter specs later
+    # - probably want this to be hyperparameter specs later
     model_dir = 'tf_files/models/cnn-' + strftime("%Y-%m-%d-%H:%M:%S", gmtime()) + '/'
 
     estimator_config = tf.estimator.RunConfig(
@@ -70,47 +55,42 @@ def main(argv):
         save_checkpoints_secs=None
     )
 
+    model = tf.estimator.Estimator(model_fn=rnn_fn,
+                                   config=estimator_config,
+                                   params={"learning_rate": 0.0001,
+                                           "optimizer": tf.train.AdamOptimizer,
+                                           "sequence_length": sequence_length,
+                                           "hidden_units": 200,
+                                           "stateful": False},
+                                   model_dir=model_dir)
 
-    # TODO: KEVIN do not use tf.contrib.learn.Estimator. It is deprecated and uses a different interface
-    # TODO: Use tf.estimator.Estimator instead.
-    # model = tf.contrib.learn.Estimator(
-    #     model_fn = rnn_fn,
-    #     config = estimator_config,
-    # )
-
-    model = tf.estimator.Estimator(
-        model_fn=rnn_fn,
-        config=estimator_config,
-        params={
-            "learning_rate": 0.0001,
-            "optimizer": tf.train.AdamOptimizer,
-            "sequence_length": sequence_length,
-            "hidden_units": ["Cool story bro"]
-        }
-    )
-
-    experiment = tf.contrib.learn.Experiment(estimator = model,
-                                             train_input_fn = train_input_fn,
-                                             train_steps = None,
-                                             eval_input_fn = val_input_fn,
-                                             eval_steps = 1,
-                                             checkpoint_and_export = True)
+    experiment = tf.contrib.learn.Experiment(estimator=model,
+                                             train_input_fn=train_input_fn,
+                                             train_steps=None,
+                                             eval_input_fn=val_input_fn,
+                                             eval_steps=1,
+                                             checkpoint_and_export=True)
     # Setting 'checkpoint_and_export' to 'True' will cause checkpoints to be exported every n steps according to
-    #   'save_checkpoints_steps' in the estimator's config. It will also cause experiment.train_and_evaluate() to
-    #   run it's evaluation step (for us that's validation) whenever said checkpoints are exported.
+    # 'save_checkpoints_steps' in the estimator's config. It will also cause experiment.train_and_evaluate() to
+    # run it's evaluation step (for us that's validation) whenever said checkpoints are exported.
 
     experiment.train_and_evaluate()
 
     """-------------------------------------------------
-    
     Debug Code to run the net on images and visualize real time the predictions on video. 
     The video is also saved to 'predictions.mp4'
-    
     """
 
     # TODO: YOUR GOING TO WANT TO COMMENT THIS VIDEO PLAYER STUFF OUT WHEN RUNNING IN THE CLOUD
 
-    print("\n\nVIDEO!\n\n")
+    model = tf.estimator.Estimator(model_fn=rnn_fn,
+                                   config=estimator_config,
+                                   params={"learning_rate": 0.0001,
+                                           "optimizer": tf.train.AdamOptimizer,
+                                           "sequence_length": sequence_length,
+                                           "hidden_units": 200,
+                                           "stateful": True},
+                                   model_dir=model_dir)
 
     fast_predict = FastPredict(model)
 
@@ -119,13 +99,11 @@ def main(argv):
 
     predict_sess = tf.Session()
     input_fn = data.get_input_fn(input_file_names=val_file_names, batch_size=128, num_epochs=None,
-                            shuffle=False, return_full_size_image=True)
+                                 shuffle=False, return_full_size_image=True)
     next_element = input_fn()
     for i in range(10000):
-
             try:
                 out = predict_sess.run(next_element)
-
                 predictions = list(fast_predict.predict(out[0]))
 
                 if video_writer is None:

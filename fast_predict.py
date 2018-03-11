@@ -11,6 +11,7 @@
  """
 
 import tensorflow as tf
+from rnn_hook import RNNStateHook
 
 
 class FastPredict:
@@ -41,7 +42,10 @@ class FastPredict:
         self.next_features = features
         if self.first_run:
             self.batch_size = len(features)
-            self.predictions = self.estimator.predict(input_fn=self._get_generator_input_fn())
+            self.predictions = self.estimator.predict(input_fn=self._get_generator_input_fn(),
+                                                      hooks=[RNNStateHook(params={"rnn_layers": 1,
+                                                                                  "batch_size": 1,
+                                                                                  "state_size": 200})])
             self.first_run = False
         elif self.batch_size != len(features):
             raise ValueError("All batches must be of the same size. First-batch:" + str(self.batch_size) + " This-batch:" + str(len(features)))
@@ -52,5 +56,5 @@ class FastPredict:
         return results
 
     def close(self):
-        self.closed=True
+        self.closed = True
         next(self.predictions)
