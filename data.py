@@ -95,11 +95,16 @@ def get_input_fn(input_file_names,
     def input_fn():
         file_names = tf.constant(input_file_names, dtype=tf.string, name='input_file_names')
 
-        if shuffle:
+        if shuffle and window_size is None:
             num_shards = len(input_file_names)
             files = tf.data.Dataset.from_tensor_slices(file_names).shuffle(num_shards)
-            dataset = files.interleave(tf.data.TFRecordDataset, cycle_length=3)
+            dataset = files.interleave(tf.data.TFRecordDataset, cycle_length=num_shards)
             dataset = dataset.shuffle(buffer_size=shard_size*2)
+
+        elif shuffle and window_size is not None:
+            num_shards = len(input_file_names)
+            files = tf.data.Dataset.from_tensor_slices(file_names).shuffle(num_shards)
+            dataset = tf.data.TFRecordDataset(files)
 
         else:
             dataset = tf.data.TFRecordDataset(file_names)
@@ -107,6 +112,8 @@ def get_input_fn(input_file_names,
         dataset = dataset.map(map_func=parse_fn, num_parallel_calls=multiprocessing.cpu_count())
         if window_size is not None:
             dataset = dataset.apply(tf.contrib.data.sliding_window_batch(window_size=window_size, stride=stride))
+            if shuffle:
+                dataset = dataset.shuffle(buffer_size=shard_size*4//stride)
 
         dataset = dataset.batch(batch_size=batch_size)
         dataset = dataset.repeat(num_epochs)  # the input is repeated indefinitely if num_epochs is None
