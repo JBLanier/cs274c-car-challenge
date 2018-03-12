@@ -8,7 +8,7 @@ class RNNStateHook(tf.train.SessionRunHook):
     self.current_state = np.zeros((params["batch_size"], params["state_size"])) #this will change when we move to LSTM
 
  def before_run(self, run_context):
-    run_args = tf.train.SessionRunArgs([tf.get_default_graph().get_tensor_by_name('RNN/output_states:0')],
+    run_args = tf.train.SessionRunArgs(tf.get_default_graph().get_tensor_by_name('RNN/output_states:0'),
                                        {self.init_states: self.current_state, },)
     return run_args
 

@@ -61,7 +61,8 @@ def main(argv):
                                            "optimizer": tf.train.AdamOptimizer,
                                            "sequence_length": sequence_length,
                                            "hidden_units": 200,
-                                           "stateful": False},
+                                           "stateful": False,
+                                           "batch_size": 16},
                                    model_dir=model_dir)
 
     experiment = tf.contrib.learn.Experiment(estimator=model,
@@ -87,9 +88,10 @@ def main(argv):
                                    config=estimator_config,
                                    params={"learning_rate": 0.0001,
                                            "optimizer": tf.train.AdamOptimizer,
-                                           "sequence_length": sequence_length,
+                                           "sequence_length": 1,
                                            "hidden_units": 200,
-                                           "stateful": True},
+                                           "stateful": True,
+                                           "batch_size": 1},
                                    model_dir=model_dir)
 
     fast_predict = FastPredict(model)

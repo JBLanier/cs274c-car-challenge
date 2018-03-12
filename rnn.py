@@ -8,7 +8,8 @@ import tensorflow as tf
 def rnn_fn(features, labels, mode, params):
     sequence_length = params.get("sequence_length", 20)
     rnn_size = params.get("hidden_units", 200)
-    stateful = params.get("statefule")
+    stateful = params.get("stateful", False)
+    batch_size = params.get("batch_size", 16)
 
     if isinstance(features, dict):
         features = features['x']
@@ -21,30 +22,25 @@ def rnn_fn(features, labels, mode, params):
     conv4 = tf.layers.conv2d(conv3, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
     conv5 = tf.layers.conv2d(conv4, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
 
-    if self.stateful is True:
-        init_states = multicell.zero_state(self.batch_size, tf.float32)
-        init_states = tf.identity(init_states, "init_states")
-
-        l = tf.unstack(init_states, axis=0)
-        rnn_tuple_state = tuple([tf.nn.rnn_cell.LSTMStateTuple(l[idx][0], l[idx][1]) for idx in range(self.rnn_layers)])
-
-    else:
-        rnn_tuple_state = multicell.zero_state(self.batch_size, tf.float32)
-
-    # Unroll RNN
-    output, output_states = tf.nn.dynamic_rnn(multicell, inputs=inputs, initial_state=rnn_tuple_state)
-
-    if self.stateful is True:
-        output_states = tf.identity(output_states, "output_states")
-        return output
-
     flattened = tf.layers.flatten(conv5)
     sequenced = tf.reshape(flattened, [-1, sequence_length, flattened.shape[1]])
     rnn_cell = tf.nn.rnn_cell.BasicRNNCell(rnn_size)
-    initial_state = rnn_cell.zero_state(1, dtype=tf.float32)
-    initial_state = tf.identity(initial_state, name="RNN/init_states")
-    rnn_outputs, rnn_out_state = tf.nn.dynamic_rnn(rnn_cell, sequenced, dtype=tf.float32)
-    rnn_out_state = tf.identity(rnn_out_state, name="RNN/output_states")
+
+    if stateful is True:
+        initial_state = rnn_cell.zero_state(batch_size, dtype=tf.float32)
+        initial_state = tf.identity(initial_state, name="RNN/init_states")
+        rnn_outputs, rnn_out_state = tf.nn.dynamic_rnn(rnn_cell,
+                                                       sequenced,
+                                                       dtype=tf.float32,
+                                                       initial_state=initial_state)
+    else:
+        rnn_outputs, rnn_out_state = tf.nn.dynamic_rnn(rnn_cell,
+                                                       sequenced,
+                                                       dtype=tf.float32)
+
+    if stateful is True:
+        rnn_out_state = tf.identity(rnn_out_state, name="RNN/output_states")
+
     rnn_outputs = tf.reshape(rnn_outputs, [-1, rnn_size])
 
     predictions = tf.squeeze(tf.layers.dense(rnn_outputs, units=1, activation=None), 1)
