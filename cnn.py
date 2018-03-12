@@ -6,25 +6,37 @@ import tensorflow as tf
 
 
 def cnn_fn(features, labels, mode, params):
+    #print(len(features))
+    training = False
+    if mode == tf.estimator.ModeKeys.TRAIN:
+        training = True
+
 
     if isinstance(features, dict):
         features = features['x']
 
-    conv1 = tf.layers.conv2d(features, 24, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv1')
-    conv2 = tf.layers.conv2d(conv1, 36, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv2')
-    conv3 = tf.layers.conv2d(conv2, 48, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv3')
-    conv4 = tf.layers.conv2d(conv3, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
-    conv5 = tf.layers.conv2d(conv4, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
+    conv1 = tf.layers.conv2d(features, 8, 7, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv1')
+    conv2 = tf.layers.conv2d(conv1, 10, 7, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv2')
+    conv3 = tf.layers.conv2d(conv2, 11, 5, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv3')
+    conv4 = tf.layers.conv2d(conv3, 11, 5, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
+    conv5 = tf.layers.conv2d(conv4, 11, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
 
     flattened = tf.layers.flatten(conv5)
 
     # Add fully-connected layers
-    fc1 = tf.layers.dense(flattened, units=1164, activation=tf.nn.relu, name="fc_1")
-    fc2 = tf.layers.dense(fc1, units=100, activation=tf.nn.relu, name="fc_2")
-    fc3 = tf.layers.dense(fc2, units=50, activation=tf.nn.relu, name="fc_3")
-    fc4 = tf.layers.dense(fc3, units=10, activation=tf.nn.relu, name="fc_4")
+    fc1 = tf.layers.dense(flattened, units=1307, activation=tf.nn.relu, name="fc1")
 
-    output_layer = tf.layers.dense(fc4, units=1, activation=None, name="output")
+    drp1 = tf.layers.dropout(fc1, rate=.5, training=training, name="drp1")
+
+    fc2 = tf.layers.dense(drp1, units=522, activation=tf.nn.relu, name="fc2")
+
+    #drp2 = tf.layers.dropout(fc2, rate=.2, training=training, name="drp2")
+
+    fc3 = tf.layers.dense(fc2, units=208, activation=tf.nn.relu, name="fc3")
+
+    #drp3 = tf.layers.dropout(fc3, rate=.2, training=training, name="drp3")
+
+    output_layer = tf.layers.dense(fc3, units=1, activation=None, name="output")
 
     # Reshape the output layer to a 1-dim Tensor to return predictions
     predictions = tf.squeeze(output_layer, 1)

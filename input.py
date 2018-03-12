@@ -73,7 +73,7 @@ def _image_preprocess_fn(image_buffer, input_height, input_width, input_mean, in
     return tf.squeeze(mul_image, axis=0)
 
 
-def get_input_fn(input_file_names, batch_size=1, num_epochs=None, shuffle=False, shard_size=3000,
+def get_input_fn(input_file_names, batch_size=1, num_epochs=20, shuffle=False, shard_size=3000,
                  return_full_size_image=False):
     """Creates input_fn according to parameters
 
@@ -145,7 +145,7 @@ def main(argv):
 
     train_input_fn = get_input_fn(input_file_names=train_file_names,
                                   batch_size=32,
-                                  num_epochs=None,
+                                  num_epochs=20,
                                   shuffle=True)
 
     val_input_fn = get_input_fn(input_file_names=val_file_names,
@@ -176,7 +176,7 @@ def main(argv):
 
     experiment = tf.contrib.learn.Experiment(estimator=model,
                                              train_input_fn=train_input_fn,
-                                             train_steps=100000,
+                                             train_steps=10000,
                                              eval_input_fn=val_input_fn,
                                              eval_steps=None,
                                              checkpoint_and_export=True)
@@ -202,7 +202,7 @@ def main(argv):
     video_writer = None
 
     predict_sess = tf.Session()
-    input_fn = get_input_fn(input_file_names=val_file_names, batch_size=1, num_epochs=None,
+    input_fn = get_input_fn(input_file_names=val_file_names, batch_size=1, num_epochs=20,
                             shuffle=False, return_full_size_image=True)
     next_element = input_fn()
     for i in range(10000):
@@ -215,19 +215,20 @@ def main(argv):
                 if video_writer is None:
                     video_writer = cv2.VideoWriter("predictions.mp4", fourcc, 40.0, (out[2].shape[2], out[2].shape[1]))
 
-                # play frames in batch
-                for j, frame in enumerate(out[2]):
-                    # It's assumed that the pixel values are decimals between -1 and 1.
-                    # We put them back to between 0 and 255 before playing.
-                    if player.display_frame(img=(np.squeeze(frame)).astype(np.uint8),
-                                            debug_info=str(out[1][j]),
-                                            milliseconds_time_to_wait=1,
-                                            predicted_angle=predictions[j]['angle'],
-                                            true_angle=out[1][j],
-                                            video_writer=video_writer):
-                        break
+                # # play frames in batch
+                # for j, frame in enumerate(out[2]):
+                #     # It's assumed that the pixel values are decimals between -1 and 1.
+                #     # We put them back to between 0 and 255 before playing.
+                #     if player.display_frame(img=(np.squeeze(frame)).astype(np.uint8),
+                #                             debug_info=str(out[1][j]),
+                #                             milliseconds_time_to_wait=1,
+                #                             predicted_angle=predictions[j]['angle'],
+                #                             true_angle=out[1][j],
+                #                             video_writer=video_writer):
+                #         break
 
             except tf.errors.OutOfRangeError:
+                print("Video Prediction Error!")
                 break
 
     print("release")
