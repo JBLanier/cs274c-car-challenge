@@ -38,7 +38,7 @@ def main(argv):
     train_input_fn = data.get_input_fn(input_file_names=train_file_names,
                                        batch_size=train_batch_size,
                                        num_epochs=10,
-                                       shuffle=False,
+                                       shuffle=True,
                                        window_size=train_sequence_length,
                                        stride=5)
 
