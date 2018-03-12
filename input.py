@@ -16,6 +16,7 @@ from rnn import rnn_fn
 import player
 import data
 from fast_predict import FastPredict
+from rnn_hook import RNNStateHook
 
 FLAGS = None
 tf.set_random_seed(42)
@@ -29,20 +30,22 @@ def get_tfrecord_file_names_from_directory(dir):
 def main(argv):
     train_file_names = get_tfrecord_file_names_from_directory(FLAGS.train_dir)
     val_file_names = get_tfrecord_file_names_from_directory(FLAGS.val_dir)
-    sequence_length = 20
+
+    train_sequence_length = 20
+    train_batch_size = 16
+    rnn_size = 200
+
     train_input_fn = data.get_input_fn(input_file_names=train_file_names,
-                                       batch_size=16,
-                                       num_epochs=20,
+                                       batch_size=train_batch_size,
+                                       num_epochs=10,
                                        shuffle=False,
-                                       window_size=sequence_length,
+                                       window_size=train_sequence_length,
                                        stride=5)
 
     val_input_fn = data.get_input_fn(input_file_names=val_file_names,
-                                     batch_size=16,
-                                     num_epochs=None,
-                                     shuffle=False,
-                                     window_size=sequence_length,
-                                     stride=5)
+                                     batch_size=1,
+                                     num_epochs=1,
+                                     shuffle=False)
 
     # Arbitrarily sticking a timestamp on the model_dirs to make each run different
     # - probably want this to be hyperparameter specs later
@@ -59,18 +62,20 @@ def main(argv):
                                    config=estimator_config,
                                    params={"learning_rate": 0.0001,
                                            "optimizer": tf.train.AdamOptimizer,
-                                           "sequence_length": sequence_length,
-                                           "hidden_units": 200,
-                                           "stateful": False,
-                                           "batch_size": 16},
+                                           "train_sequence_length": train_sequence_length,
+                                           "rnn_size": rnn_size},
                                    model_dir=model_dir)
+
+    state_hook = RNNStateHook(state_size=rnn_size)
 
     experiment = tf.contrib.learn.Experiment(estimator=model,
                                              train_input_fn=train_input_fn,
                                              train_steps=None,
                                              eval_input_fn=val_input_fn,
-                                             eval_steps=1,
-                                             checkpoint_and_export=True)
+                                             eval_steps=None,
+                                             eval_hooks=[state_hook],
+                                             checkpoint_and_export=True,
+                                             )
     # Setting 'checkpoint_and_export' to 'True' will cause checkpoints to be exported every n steps according to
     # 'save_checkpoints_steps' in the estimator's config. It will also cause experiment.train_and_evaluate() to
     # run it's evaluation step (for us that's validation) whenever said checkpoints are exported.
@@ -88,22 +93,25 @@ def main(argv):
                                    config=estimator_config,
                                    params={"learning_rate": 0.0001,
                                            "optimizer": tf.train.AdamOptimizer,
-                                           "sequence_length": 1,
-                                           "hidden_units": 200,
-                                           "stateful": True,
-                                           "batch_size": 1},
+                                           "rnn_size": 200},
                                    model_dir=model_dir)
 
-    fast_predict = FastPredict(model)
+    fast_predict = FastPredict(model, hooks=[state_hook])
 
     fourcc = cv2.VideoWriter_fourcc(*'MP4V')
     video_writer = None
 
     predict_sess = tf.Session()
-    input_fn = data.get_input_fn(input_file_names=val_file_names, batch_size=128, num_epochs=None,
-                                 shuffle=False, return_full_size_image=True)
+    print("call visualization input fn")
+    input_fn = data.get_input_fn(input_file_names=val_file_names,
+                                       batch_size=1,
+                                       num_epochs=1,
+                                       shuffle=False,
+                                       return_full_size_image=True
+                                    )
     next_element = input_fn()
-    for i in range(10000):
+    print("done")
+    for i in range(100000):
             try:
                 out = predict_sess.run(next_element)
                 predictions = list(fast_predict.predict(out[0]))

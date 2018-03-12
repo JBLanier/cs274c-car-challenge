@@ -29,8 +29,9 @@ class FastPredict:
 
         return generator_input_fn
 
-    def __init__(self, estimator):
+    def __init__(self, estimator, hooks=None):
         self.estimator = estimator
+        self.hooks = hooks
         self.first_run = True
         self.closed = False
         self.batch_size = None
@@ -43,9 +44,7 @@ class FastPredict:
         if self.first_run:
             self.batch_size = len(features)
             self.predictions = self.estimator.predict(input_fn=self._get_generator_input_fn(),
-                                                      hooks=[RNNStateHook(params={"rnn_layers": 1,
-                                                                                  "batch_size": 1,
-                                                                                  "state_size": 200})])
+                                                      hooks=self.hooks)
             self.first_run = False
         elif self.batch_size != len(features):
             raise ValueError("All batches must be of the same size. First-batch:" + str(self.batch_size) + " This-batch:" + str(len(features)))
