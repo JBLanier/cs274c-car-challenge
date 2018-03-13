@@ -6,18 +6,20 @@ import tensorflow as tf
 
 
 def rnn_fn(features, labels, mode, params):
-    sequence_length = 1
+    sequence_length = 16
     if mode == tf.estimator.ModeKeys.TRAIN:
         sequence_length = params.get("train_sequence_length", 20)
-    rnn_size = params.get("rnn_size", 200)
+    rnn_size = params.get("rnn_size", 50)
 
     if isinstance(features, dict):
         features = features['x']
 
+    orig_features = features
+
     print("FEATURES SHAPE: {}".format(features.shape.as_list()))
     if features.shape.as_list() != [None,66,200,3]:
         features = tf.reshape(features, [-1, features.shape[-3], features.shape[-2], features.shape[-1]])
-        print("had to reshape")
+        print("had to reshape to {}".format(features.shape))
     else:
         print("did not have to reshape")
 
@@ -28,35 +30,43 @@ def rnn_fn(features, labels, mode, params):
     conv5 = tf.layers.conv2d(conv4, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
 
     flattened = tf.layers.flatten(conv5)
-    sequenced = tf.reshape(flattened, [-1, sequence_length, flattened.shape[1]])
+
+    # Add fully-connected layers
+    fc1 = tf.layers.dense(flattened, units=1164, activation=tf.nn.relu, name="fc_1")
+    fc2 = tf.layers.dense(fc1, units=100, activation=tf.nn.relu, name="fc_2")
+    fc3 = tf.layers.dense(fc2, units=50, activation=tf.nn.relu, name="fc_3")
+
+    print("fc3 shape: {}".format(fc3.shape))
+
+    sequenced = tf.reshape(fc3, [-1, sequence_length, fc3.shape[1]])
     print("Sequenced size: {}".format(sequenced.shape))
     rnn_cell = tf.nn.rnn_cell.BasicRNNCell(rnn_size)
 
-    if mode == tf.estimator.ModeKeys.TRAIN:
-        rnn_outputs, rnn_out_state = tf.nn.dynamic_rnn(rnn_cell,
-                                                           sequenced,
-                                                           dtype=tf.float32)
-    else:
-        initial_state = rnn_cell.zero_state(batch_size=1, dtype=tf.float32)
-        initial_state = tf.identity(initial_state, name="RNN/init_states")
-        rnn_outputs, rnn_out_state = tf.nn.dynamic_rnn(rnn_cell,
+    # if mode == tf.estimator.ModeKeys.TRAIN:
+    rnn_outputs, rnn_out_state = tf.nn.dynamic_rnn(rnn_cell,
                                                        sequenced,
-                                                       dtype=tf.float32,
-                                                       initial_state=initial_state)
-
-        rnn_out_state = tf.identity(rnn_out_state, name="RNN/output_states")
+                                                       dtype=tf.float32)
+    # else:
+    #     initial_state = rnn_cell.zero_state(batch_size=1, dtype=tf.float32)
+    #     initial_state = tf.identity(initial_state, name="RNN/init_states")
+    #     rnn_outputs, rnn_out_state = tf.nn.dynamic_rnn(rnn_cell,
+    #                                                    sequenced,
+    #                                                    dtype=tf.float32,
+    #                                                    initial_state=initial_state)
+    #
+    #     rnn_out_state = tf.identity(rnn_out_state, name="RNN/output_states")
 
     rnn_outputs = tf.reshape(rnn_outputs, [-1, rnn_size])
 
-    predictions = tf.squeeze(tf.layers.dense(rnn_outputs, units=1, activation=None), 1)
+    predictions = tf.layers.dense(rnn_outputs, units=1, activation=None)
 
+    print("predictions shape {}".format(predictions.shape))
     if mode == tf.estimator.ModeKeys.PREDICT:
         # In `PREDICT` mode we only need to return predictions.
         return tf.estimator.EstimatorSpec(mode=mode, predictions={'angle': predictions})
 
     # Calculate loss using mean squared error
-    mean_squared_error = tf.losses.mean_squared_error(labels=tf.reshape(labels, [-1]), predictions=predictions)
-    root_mean_squared_error = tf.sqrt(mean_squared_error)
+    mean_squared_error = tf.losses.mean_squared_error(labels=tf.reshape(labels, [-1]), predictions=tf.squeeze(predictions, 1))
 
     # # Pre-made estimators use the total_loss instead of the average,
     # # so report total_loss for compatibility.
@@ -66,35 +76,21 @@ def rnn_fn(features, labels, mode, params):
     if mode == tf.estimator.ModeKeys.TRAIN:
         optimizer = params.get("optimizer", tf.train.AdamOptimizer)
         optimizer = optimizer(params.get("learning_rate", None))
-        train_op = optimizer.minimize(loss=mean_squared_error, global_step=tf.train.get_global_step())
-        return tf.estimator.EstimatorSpec(mode=mode, loss=root_mean_squared_error, train_op=train_op)
+        train_op = optimizer.minimize(
+            loss=mean_squared_error, global_step=tf.train.get_global_step())
 
-    # In evaluation mode we will calculate evaluation metrics.
+        return tf.estimator.EstimatorSpec(
+            mode=mode, loss=mean_squared_error, train_op=train_op)
+
+        # In evaluation mode we will calculate evaluation metrics.
     assert mode == tf.estimator.ModeKeys.EVAL
 
     eval_metrics = {}
 
-    # TODO: There's nothing to do. I just want to highlight what total bullshit 'tf.metrics.root_mean_squared_error' is.
-    # TODO: It's not RMSE for the predictions of just this batch, it's a rolling RMSE over the whole session.
-    # TODO: Meaning it's never what you expect it to be.
-    # TODO: tf.metrics.root_mean_squared_error is a lie!
-    # TODO: It used to be called 'streaming_mean_squared_error' but then someone decided "No, let's confuse everyone."
-
-    # rmse = tf.metrics.root_mean_squared_error(labels, predictions)
-    # eval_metrics["wish_i_knew_what_this_did_2_hours_ago_rmse"] = rmse
+    rmse = tf.metrics.root_mean_squared_error(tf.reshape(labels, [-1]), tf.squeeze(predictions,1))
+    eval_metrics["validation_rmse"] = rmse
 
     return tf.estimator.EstimatorSpec(
         mode=mode,
-        loss=root_mean_squared_error,
+        loss=mean_squared_error,
         eval_metric_ops=eval_metrics)
-
-    # TODO: Furthermore, see that loss parameter in the estimator spec right there? Yeah it's a lie too,
-    # TODO: but it's a lie for the good of society. If you pass an RMSE tensor like that in training mode,
-    # TODO: it'll report what you gave, the RMSE for the batch, but when you're evaluating, you don't want that.
-    # TODO: When evaluating, you want the RMSE over ALL the batches, and guess what?
-    # TODO: In the Estimator evaluate() function,
-    # TODO: they average that loss over all the batches before reporting it back to you,
-    # TODO: so you don't have to worry about it, that is unless you question the meaning of your own existence and
-    # TODO: realize that none of the loss functions are doing explicitly what you'd think they should do and then time itself starts to become an incorrect implementation of RMSE and you can see the RMSE between your past and future selves
-
-    # TODO: I promise, 'loss' on tensorboard is RMSE. It works, I swear. - JB <3

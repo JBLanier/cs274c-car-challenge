@@ -29,12 +29,22 @@ class FastPredict:
 
         return generator_input_fn
 
+    def _get_sequence_generator_input_fn(self):
+
+        def generator_input_fn():
+
+            ds = tf.data.Dataset.from_generator(self.generator, tf.float32, tf.TensorShape([None, None, 66, 200, 3]))
+            return ds.make_one_shot_iterator().get_next()
+
+        return generator_input_fn
+
     def __init__(self, estimator, hooks=None):
         self.estimator = estimator
         self.hooks = hooks
         self.first_run = True
         self.closed = False
         self.batch_size = None
+        self.sequence_length = None
         self.predictions = None
         self.next_features = None
         self.generator = self._create_generator
@@ -52,6 +62,23 @@ class FastPredict:
         results = []
         for _ in range(self.batch_size):
             results.append(next(self.predictions))
+        return results
+
+    def sequence_predict(self, features):
+        self.next_features = features
+        if self.first_run:
+            self.batch_size = len(features)
+            self.sequence_length = features.shape[1]
+            self.predictions = self.estimator.predict(input_fn=self._get_sequence_generator_input_fn(),
+                                                      hooks=self.hooks)
+            self.first_run = False
+        elif self.batch_size != len(features):
+            raise ValueError("All batches must be of the same size. First-batch:" + str(self.batch_size) + " This-batch:" + str(len(features)))
+
+        results = []
+        for _ in range(self.batch_size):
+            for __ in range(self.sequence_length):
+                results.append(next(self.predictions))
         return results
 
     def close(self):

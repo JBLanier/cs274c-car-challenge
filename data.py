@@ -2,7 +2,7 @@ import tensorflow as tf
 import multiprocessing
 
 
-def _image_preprocess_fn(image_buffer, input_height, input_width, input_mean, input_std, return_full_size_image=False):
+def _image_preprocess_fn(image_buffer, input_height, input_width, apply_distortions=False, return_full_size_image=False):
     """Adds operations that perform JPEG decoding and resizing to the graph..
 
         Args:
@@ -24,7 +24,7 @@ def _image_preprocess_fn(image_buffer, input_height, input_width, input_mean, in
 
     # Decode and crop image.
     offset_x = 0
-    offset_y = image_shape[0] // 3  # We want to crop off the top fifth of the image
+    offset_y = image_shape[0] // 3  # We want to crop off the top third of the image
     crop_width = image_shape[1]
     crop_height = 2 * image_shape[0] // 3
     crop_window = tf.stack([offset_y, offset_x, crop_height, crop_width])
@@ -36,15 +36,27 @@ def _image_preprocess_fn(image_buffer, input_height, input_width, input_mean, in
     resize_shape = tf.stack([input_height, input_width])
     resize_shape_as_int = tf.cast(resize_shape, dtype=tf.int32)
     resized_image = tf.image.resize_bilinear(decoded_image_4d, resize_shape_as_int)
+    uint8_image = tf.cast(resized_image, dtype=tf.uint8)
+    float_image = tf.image.convert_image_dtype(uint8_image, tf.float32)
 
-    # Normalize image
-    offset_image = tf.subtract(resized_image, input_mean)
-    mul_image = tf.multiply(offset_image, 1.0 / input_std)
+    if apply_distortions:
+        gamma = tf.clip_by_value(tf.random_normal([], mean=1.0, stddev=0.5), 0.0, 2.0)
+        vertical_shift = tf.round(tf.random_normal([2], mean=[0, 0], stddev=[0, 0.5]))
+        float_image = tf.image.adjust_gamma(float_image, gamma)
+        float_image = tf.image.random_hue(float_image,0.1)
+        float_image = tf.contrib.image.translate(
+            float_image,
+            vertical_shift,
+            interpolation='NEAREST',
+            name=None
+        )
+
+    offset_image = tf.subtract(float_image, 0.5) * 2
 
     if return_full_size_image:
-        return tf.squeeze(mul_image, axis=0), cropped_image
+        return tf.squeeze(offset_image, axis=0), cropped_image #tf.cast((offset_image * 127) + 128, tf.uint8)
 
-    return tf.squeeze(mul_image, axis=0)
+    return tf.squeeze(offset_image, axis=0)
 
 
 def get_input_fn(input_file_names,
@@ -52,9 +64,11 @@ def get_input_fn(input_file_names,
                  num_epochs=None,
                  shuffle=False,
                  shard_size=3000,
+                 apply_distortions=False,
                  return_full_size_image=False,
                  window_size=None,
-                 stride=1
+                 stride=1,
+
                  ):
     """Creates input_fn according to parameters
 
@@ -83,12 +97,12 @@ def get_input_fn(input_file_names,
 
         if return_full_size_image:
             preprocessed_image, full_size_image = _image_preprocess_fn(
-                image_buffer=parsed["image"], input_height=66, input_width=200, input_mean=128,
-                input_std=128, return_full_size_image=True)
+                image_buffer=parsed["image"], input_height=66, input_width=200, apply_distortions=apply_distortions,
+                return_full_size_image=True)
             return preprocessed_image, parsed["target"], full_size_image
 
         preprocessed_image = _image_preprocess_fn(image_buffer=parsed["image"], input_height=66, input_width=200,
-                                                  input_mean=128, input_std=128)
+                                                  apply_distortions=apply_distortions)
 
         return preprocessed_image, parsed["target"]
 
@@ -110,10 +124,11 @@ def get_input_fn(input_file_names,
             dataset = tf.data.TFRecordDataset(file_names)
 
         dataset = dataset.map(map_func=parse_fn, num_parallel_calls=multiprocessing.cpu_count())
+
         if window_size is not None:
             dataset = dataset.apply(tf.contrib.data.sliding_window_batch(window_size=window_size, stride=stride))
             if shuffle:
-                dataset = dataset.shuffle(buffer_size=shard_size*4//stride)
+                dataset = dataset.shuffle(buffer_size=shard_size*6//stride)
 
         dataset = dataset.batch(batch_size=batch_size)
         dataset = dataset.repeat(num_epochs)  # the input is repeated indefinitely if num_epochs is None
