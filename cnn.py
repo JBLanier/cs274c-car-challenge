@@ -15,25 +15,40 @@ def cnn_fn(features, labels, mode, params):
     if isinstance(features, dict):
         features = features['x']
 
+    #Normal Model
     conv1 = tf.layers.conv2d(features, 8, 7, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv1')
     conv2 = tf.layers.conv2d(conv1, 10, 7, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv2')
     conv3 = tf.layers.conv2d(conv2, 11, 5, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv3')
     conv4 = tf.layers.conv2d(conv3, 11, 5, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
     conv5 = tf.layers.conv2d(conv4, 11, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
 
+    # # Max Pooling Model
+    # conv1 = tf.layers.conv2d(features, 8, 7, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv1')
+    # maxp1 = tf.layers.max_pooling2d(conv1, 2, 2, padding='valid', name='maxp1')
+    # conv2 = tf.layers.conv2d(maxp1, 10, 7, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv2')
+    # maxp2 = tf.layers.max_pooling2d(conv2, 2, 2, padding='valid', name='maxp2')
+    # conv3 = tf.layers.conv2d(maxp2, 11, 5, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv3')
+    # #maxp3 = tf.layers.max_pooling2d(conv3, 2, 2, padding='same', name='maxp3')
+    # conv4 = tf.layers.conv2d(conv3, 11, 5, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
+    # #maxp4 = tf.layers.max_pooling2d(conv4, 2, 2, padding='valid', name='maxp4')
+    # conv5 = tf.layers.conv2d(conv4, 11, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
+    # #maxp5 = tf.layers.max_pooling2d(conv1, 2, 2)
+
     flattened = tf.layers.flatten(conv5)
 
-    # Add fully-connected layers
+    # #Normal Model
+    # # Add fully-connected layers
+    # fc1 = tf.layers.dense(flattened, units=1307, activation=tf.nn.relu, name="fc1")
+    # fc2 = tf.layers.dense(fc1, units=522, activation=tf.nn.relu, name="fc2")
+    # fc3 = tf.layers.dense(fc2, units=208, activation=tf.nn.relu, name="fc3")
+
+
+    # Dropout Model
     fc1 = tf.layers.dense(flattened, units=1307, activation=tf.nn.relu, name="fc1")
-
-    drp1 = tf.layers.dropout(fc1, rate=.5, training=training, name="drp1")
-
+    drp1 = tf.layers.dropout(fc1, rate=.2, training=training, name="drp1")
     fc2 = tf.layers.dense(drp1, units=522, activation=tf.nn.relu, name="fc2")
-
-    #drp2 = tf.layers.dropout(fc2, rate=.2, training=training, name="drp2")
-
-    fc3 = tf.layers.dense(fc2, units=208, activation=tf.nn.relu, name="fc3")
-
+    drp2 = tf.layers.dropout(fc2, rate=.2, training=training, name="drp2")
+    fc3 = tf.layers.dense(drp2, units=208, activation=tf.nn.relu, name="fc3")
     #drp3 = tf.layers.dropout(fc3, rate=.2, training=training, name="drp3")
 
     output_layer = tf.layers.dense(fc3, units=1, activation=None, name="output")
