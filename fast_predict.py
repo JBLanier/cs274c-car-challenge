@@ -76,8 +76,8 @@ class FastPredict:
             raise ValueError("All batches must be of the same size. First-batch:" + str(self.batch_size) + " This-batch:" + str(len(features)))
 
         results = []
-        for _ in range(self.batch_size):
-            for __ in range(self.sequence_length):
+        for _ in range(1):
+            for __ in range(1):
                 results.append(next(self.predictions))
         return results
 

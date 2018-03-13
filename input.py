@@ -32,22 +32,22 @@ def main(argv):
     val_file_names = get_tfrecord_file_names_from_directory(FLAGS.val_dir)
 
     train_sequence_length = 16
-    train_batch_size = 4
+    train_batch_size = 16
     rnn_size = 50
 
     train_input_fn = data.get_input_fn(input_file_names=train_file_names,
                                        batch_size=train_batch_size,
-                                       num_epochs=20,
+                                       num_epochs=50,
                                        shuffle=True,
                                        window_size=train_sequence_length,
-                                       stride=5,
+                                       stride=1,
                                        apply_distortions=True)
 
     val_input_fn = data.get_input_fn(input_file_names=val_file_names,
                                      batch_size=train_batch_size,
                                      num_epochs=1,
                                      window_size=train_sequence_length,
-                                     stride=5,
+                                     stride=1,
                                      shuffle=False)
 
     # Arbitrarily sticking a timestamp on the model_dirs to make each run different
@@ -67,7 +67,7 @@ def main(argv):
                                            "optimizer": tf.train.AdamOptimizer,
                                            "train_sequence_length": train_sequence_length,
                                            "rnn_size": rnn_size},
-                                   model_dir="tf_files/models/cnn-2018-03-13-06:32:20/")
+                                   model_dir=model_dir)
 
     state_hook = RNNStateHook(state_size=rnn_size)
 
@@ -83,7 +83,7 @@ def main(argv):
     # 'save_checkpoints_steps' in the estimator's config. It will also cause experiment.train_and_evaluate() to
     # run it's evaluation step (for us that's validation) whenever said checkpoints are exported.
 
-    # experiment.train_and_evaluate()
+    experiment.train_and_evaluate()  #-0.38883182
 
     """-------------------------------------------------
     Debug Code to run the net on images and visualize real time the predictions on video. 
@@ -97,7 +97,7 @@ def main(argv):
                                    params={"learning_rate": 0.0001,
                                            "optimizer": tf.train.AdamOptimizer,
                                            "rnn_size": rnn_size},
-                                   model_dir="tf_files/models/cnn-2018-03-13-06:32:20/")
+                                   model_dir=model_dir)   #"tf_files/models/cnn-2018-03-13-06:32:20/"
 
     fast_predict = FastPredict(model, hooks=[])
 
@@ -119,11 +119,10 @@ def main(argv):
     for i in range(100000):
             try:
                 out = predict_sess.run(next_element)
-                print("OUT[0][0,-1] shape: {} OUT[1][0,-1] shape: {} OUT[3][0,-1] shape: {}".format(out[0][0, -1].shape,out[1][0, -1].shape, out[2][0, -1].shape))
                 predictions = list(fast_predict.sequence_predict(out[0]))
-                print("PREDICTIONS: {}".format(len(predictions)))
+                print("PREDICTION: {}".format(predictions))
                 if video_writer is None:
-                    video_writer = cv2.VideoWriter("predictions.mp4", fourcc, 40.0, (out[2][0,-1].shape[2], out[2][0,-1].shape[1]))
+                    video_writer = cv2.VideoWriter("predictions.mp4", fourcc, 40.0, (out[2][0,-1].shape[1], out[2][0,-1].shape[0]))
 
                 frame = out[2][0,-1]
                 # It's assumed that the pixel values are decimals between -1 and 1.

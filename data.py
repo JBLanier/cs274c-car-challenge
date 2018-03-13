@@ -128,7 +128,7 @@ def get_input_fn(input_file_names,
         if window_size is not None:
             dataset = dataset.apply(tf.contrib.data.sliding_window_batch(window_size=window_size, stride=stride))
             if shuffle:
-                dataset = dataset.shuffle(buffer_size=shard_size*6//stride)
+                dataset = dataset.shuffle(buffer_size=shard_size*3)
 
         dataset = dataset.batch(batch_size=batch_size)
         dataset = dataset.repeat(num_epochs)  # the input is repeated indefinitely if num_epochs is None

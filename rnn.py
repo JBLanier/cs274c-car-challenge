@@ -6,15 +6,11 @@ import tensorflow as tf
 
 
 def rnn_fn(features, labels, mode, params):
-    sequence_length = 16
-    if mode == tf.estimator.ModeKeys.TRAIN:
-        sequence_length = params.get("train_sequence_length", 20)
+    sequence_length = params.get("train_sequence_length", 16)
     rnn_size = params.get("rnn_size", 50)
 
     if isinstance(features, dict):
         features = features['x']
-
-    orig_features = features
 
     print("FEATURES SHAPE: {}".format(features.shape.as_list()))
     if features.shape.as_list() != [None,66,200,3]:
@@ -56,17 +52,19 @@ def rnn_fn(features, labels, mode, params):
     #
     #     rnn_out_state = tf.identity(rnn_out_state, name="RNN/output_states")
 
-    rnn_outputs = tf.reshape(rnn_outputs, [-1, rnn_size])
+    rnn_outputs = rnn_outputs[:,-1,:]  # We only care about the last outputs in each sequence
+    print ("run outputs shape: {}".format(rnn_outputs.shape))
 
-    predictions = tf.layers.dense(rnn_outputs, units=1, activation=None)
+    predictions = tf.squeeze(tf.layers.dense(rnn_outputs, units=1, activation=None),1)
 
-    print("predictions shape {}".format(predictions.shape))
     if mode == tf.estimator.ModeKeys.PREDICT:
         # In `PREDICT` mode we only need to return predictions.
         return tf.estimator.EstimatorSpec(mode=mode, predictions={'angle': predictions})
 
+    labels = labels[:,-1]  # We only care about the last label in each sequence
+
     # Calculate loss using mean squared error
-    mean_squared_error = tf.losses.mean_squared_error(labels=tf.reshape(labels, [-1]), predictions=tf.squeeze(predictions, 1))
+    mean_squared_error = tf.losses.mean_squared_error(labels=labels, predictions=predictions)
 
     # # Pre-made estimators use the total_loss instead of the average,
     # # so report total_loss for compatibility.
@@ -87,7 +85,7 @@ def rnn_fn(features, labels, mode, params):
 
     eval_metrics = {}
 
-    rmse = tf.metrics.root_mean_squared_error(tf.reshape(labels, [-1]), tf.squeeze(predictions,1))
+    rmse = tf.metrics.root_mean_squared_error(labels, predictions)
     eval_metrics["validation_rmse"] = rmse
 
     return tf.estimator.EstimatorSpec(
