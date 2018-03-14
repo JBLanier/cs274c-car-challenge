@@ -215,17 +215,17 @@ def main(argv):
                 if video_writer is None:
                     video_writer = cv2.VideoWriter("predictions.mp4", fourcc, 40.0, (out[2].shape[2], out[2].shape[1]))
 
-                # play frames in batch
-                for j, frame in enumerate(out[2]):
-                    # It's assumed that the pixel values are decimals between -1 and 1.
-                    # We put them back to between 0 and 255 before playing.
-                    if player.display_frame(img=(np.squeeze(frame)).astype(np.uint8),
-                                            debug_info=str(out[1][j]),
-                                            milliseconds_time_to_wait=1,
-                                            predicted_angle=predictions[j]['angle'],
-                                            true_angle=out[1][j],
-                                            video_writer=video_writer):
-                        break
+                # # play frames in batch
+                # for j, frame in enumerate(out[2]):
+                #     # It's assumed that the pixel values are decimals between -1 and 1.
+                #     # We put them back to between 0 and 255 before playing.
+                #     if player.display_frame(img=(np.squeeze(frame)).astype(np.uint8),
+                #                             debug_info=str(out[1][j]),
+                #                             milliseconds_time_to_wait=1,
+                #                             predicted_angle=predictions[j]['angle'],
+                #                             true_angle=out[1][j],
+                #                             video_writer=video_writer):
+                #         break
 
             except tf.errors.OutOfRangeError:
                 #print("Video Prediction Error!")
