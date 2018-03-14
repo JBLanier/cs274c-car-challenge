@@ -32,7 +32,7 @@ def main(argv):
     val_file_names = get_tfrecord_file_names_from_directory(FLAGS.val_dir)
 
     train_sequence_length = 16
-    train_batch_size = 16
+    train_batch_size = 4
     rnn_size = 50
 
     train_input_fn = data.get_input_fn(input_file_names=train_file_names,

@@ -19,18 +19,31 @@ def rnn_fn(features, labels, mode, params):
     else:
         print("did not have to reshape")
 
-    conv1 = tf.layers.conv2d(features, 24, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv1')
-    conv2 = tf.layers.conv2d(conv1, 36, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv2')
-    conv3 = tf.layers.conv2d(conv2, 48, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv3')
-    conv4 = tf.layers.conv2d(conv3, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
-    conv5 = tf.layers.conv2d(conv4, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
+    # activation = tf.nn.leaky_relu
+    # he_init = tf.variance_scaling_initializer(scale=2, mode='fan_in')
+    #
+    # conv1 = tf.layers.conv2d(features, 24, 5, strides=(2, 2), padding='valid', activation=activation, name='conv1', kernel_initializer=he_init)
+    # conv2 = tf.layers.conv2d(conv1, 36, 5, strides=(2, 2), padding='valid', activation=activation, name='conv2', kernel_initializer=he_init)
+    # conv3 = tf.layers.conv2d(conv2, 48, 5, strides=(2, 2), padding='valid', activation=activation, name='conv3', kernel_initializer=he_init)
+    # conv4 = tf.layers.conv2d(conv3, 64, 3, strides=(1, 1), padding='valid', activation=activation, name='conv4', kernel_initializer=he_init)
+    # conv5 = tf.layers.conv2d(conv4, 64, 3, strides=(1, 1), padding='valid', activation=activation, name='conv5', kernel_initializer=he_init)
+
+    conv1 = tf.layers.conv2d(features, 8, 7, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv1')
+    conv2 = tf.layers.conv2d(conv1, 10, 7, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv2')
+    conv3 = tf.layers.conv2d(conv2, 11, 5, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv3')
+    conv4 = tf.layers.conv2d(conv3, 11, 5, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
+    conv5 = tf.layers.conv2d(conv4, 11, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
 
     flattened = tf.layers.flatten(conv5)
 
-    # Add fully-connected layers
-    fc1 = tf.layers.dense(flattened, units=1164, activation=tf.nn.relu, name="fc_1")
-    fc2 = tf.layers.dense(fc1, units=100, activation=tf.nn.relu, name="fc_2")
-    fc3 = tf.layers.dense(fc2, units=50, activation=tf.nn.relu, name="fc_3")
+    # # Add fully-connected layers
+    # fc1 = tf.layers.dense(flattened, units=1164, activation=activation, name="fc_1", kernel_initializer=he_init)
+    # fc2 = tf.layers.dense(fc1, units=100, activation=activation, name="fc_2", kernel_initializer=he_init)
+    # fc3 = tf.layers.dense(fc2, units=50, activation=activation, name="fc_3", kernel_initializer=he_init)
+
+    fc1 = tf.layers.dense(flattened, units=1307, activation=tf.nn.relu, name="fc1")
+    fc2 = tf.layers.dense(fc1, units=522, activation=tf.nn.relu, name="fc2")
+    fc3 = tf.layers.dense(fc2, units=208, activation=tf.nn.relu, name="fc3")
 
     print("fc3 shape: {}".format(fc3.shape))
 
