@@ -9,7 +9,9 @@ import tensorflow as tf
 from trainer.low_performance_stop_hook import LowPerformanceStopHook
 from tensorflow.contrib.training.python.training import hparam
 from tensorflow.python.client import device_lib
+import numpy as np
 
+import player
 
 import trainer.model as model
 
@@ -43,6 +45,34 @@ def calculate_conv_output_size(input_size, kernel_size, stride):
 def run_experiment(hparams):
     """Run the training and evaluate using the high level API"""
 
+    # print("OFFSET IS {}".format(hparams.offset))
+    #
+    # with tf.Session() as sess:
+    #     batch_size = 16
+    #     input_fn = model.get_input_fn(input_file_names=hparams.train_files,
+    #                           batch_size=hparams.eval_batch_size,
+    #                           num_epochs=1,
+    #                           shuffle=True,
+    #                           return_full_size_image=True, offset=hparams.offset)
+    #     next_element = input_fn()
+    #     for i in range(40000):
+    #
+    #             try:
+    #                 out = sess.run(next_element)
+    #                 print(out[1]) # prints the label(s) in the batch
+    #
+    #                 # play frames in batch
+    #                 for j, frame in enumerate(out[2]):
+    #                     # It's assumed that the pixel values are decimals between -1 and 1.
+    #                     # We put them back to between 0 and 255 before playing.
+    #                     if player.display_frame(img=frame,
+    #                                             debug_info=str(out[1][j]),
+    #                                             true_angle=out[1],
+    #                                             milliseconds_time_to_wait=1):
+    #                         break
+    #             except tf.errors.OutOfRangeError:
+    #                 break
+
     train_input = model.get_input_fn(input_file_names=hparams.train_files,
                                batch_size=hparams.train_batch_size,
                                num_epochs=hparams.num_epochs,
@@ -52,8 +82,7 @@ def run_experiment(hparams):
     eval_input = model.get_input_fn(input_file_names=hparams.eval_files,
                               batch_size=hparams.eval_batch_size,
                               num_epochs=1,
-                              shuffle=False,
-                              offset=hparams.offset)
+                              shuffle=False)
 
     model_fn = model.get_model_fn()
 

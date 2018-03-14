@@ -72,31 +72,40 @@ def get_input_fn(input_file_names, batch_size=1, num_epochs=None, shuffle=False,
     def parse_fn(example):
         """Parse TFExample records and perform simple data augmentation."""
 
-        example_fmt = {
-            "image": tf.FixedLenFeature((), tf.string),
-            "target": tf.FixedLenFeature((), tf.float32, -1),
-            "camera_index": tf.FixedLenFeature((), tf.int64, -1)
-        }
+        if offset != 0:
+            example_fmt = {
+                "image": tf.FixedLenFeature((), tf.string),
+                "target": tf.FixedLenFeature((), tf.float32, -1),
+                "camera_index": tf.FixedLenFeature((), tf.int64, -1)
+            }
+        else:
+            example_fmt = {
+                "image": tf.FixedLenFeature((), tf.string),
+                "target": tf.FixedLenFeature((), tf.float32, -1)
+            }
+
         parsed = tf.parse_single_example(example, example_fmt)
+
+        target = parsed["target"]
+
+        if offset != 0:
+            print("OFFSET WILL BE APPLIED")
+
+            camera_index = parsed["camera_index"]
+
+            target = tf.cond(tf.equal(camera_index, 0), lambda: target + offset, lambda: target)
+            target = tf.cond(tf.equal(camera_index, 2), lambda: target - offset, lambda: target)
+            # This should never happen, cause an error if it does
+            target = tf.cond(tf.equal(camera_index, -1), lambda: tf.constant([-1,-1,-1,-1],tf.float32), lambda: target)
 
         if return_full_size_image:
             preprocessed_image, full_size_image = _image_preprocess_fn(
                 image_buffer=parsed["image"], input_height=66, input_width=200, input_mean=128,
                 input_std=128, return_full_size_image=True)
-            return preprocessed_image, parsed["target"], full_size_image
+            return preprocessed_image, target, full_size_image
 
         preprocessed_image = _image_preprocess_fn(image_buffer=parsed["image"], input_height=66, input_width=200,
                                                   input_mean=128, input_std=128)
-
-
-        target = parsed["target"]
-
-        if parsed["camera_index"] == 0:
-            target = target + offset
-        elif parsed["camera_index"] == 2:
-            target = target - offset
-        elif parsed["camera_index"] != 1:
-            print("camera index wasn't an allowed value: {}".format(parsed["camera_index"]))
 
         return preprocessed_image, target
 
@@ -107,7 +116,7 @@ def get_input_fn(input_file_names, batch_size=1, num_epochs=None, shuffle=False,
             num_shards = len(input_file_names)
 
             files = tf.data.Dataset.from_tensor_slices(file_names).shuffle(num_shards)
-            dataset = files.interleave(tf.data.TFRecordDataset, cycle_length=3)
+            dataset = files.interleave(tf.data.TFRecordDataset, cycle_length=num_shards)
             dataset = dataset.shuffle(buffer_size=shard_size * 2)
 
         else:

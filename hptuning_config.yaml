@@ -10,6 +10,6 @@ trainingInput:
 
       - parameterName: offset
         type: DOUBLE
-        minValue: -1.0
+        minValue: -0.2
         maxValue: 1.0
         scaleType: UNIT_LINEAR_SCALE

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TRAIN_FILES=$(ls /media/jb/m2_linux/tf_records_unstructured/training/*_frames* | tr '\n' ' ')
+TRAIN_FILES=$(ls /media/jb/m2_linux/3_cameras_unstructured/training/*_frames* | tr '\n' ' ')
 EVAL_FILES=$(ls /media/jb/m2_linux/tf_records_unstructured/validation/*_frames* | tr '\n' ' ')
 
 DATE=`date '+%Y_%m_%d_at_%H_%M_%S'`
@@ -19,7 +19,8 @@ python -u cnn_hyperopt.py \
 -- \
 --train-files $TRAIN_FILES \
 --eval-files $EVAL_FILES \
---num-epochs 50 \
+--num-epochs 15 \
+--train-steps 20000 \
 --train-batch-size 32 \
---verbosity 'WARN' \
+--verbosity 'INFO' \
 2>&1 | tee $OUTPUT_DIR/output.log
