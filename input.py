@@ -33,7 +33,6 @@ def main(argv):
 
     train_sequence_length = 16
     train_batch_size = 16
-    rnn_size = 50
 
     train_input_fn = data.get_input_fn(input_file_names=train_file_names,
                                        batch_size=train_batch_size,
@@ -65,11 +64,8 @@ def main(argv):
                                    config=estimator_config,
                                    params={"learning_rate": 0.0001,
                                            "optimizer": tf.train.AdamOptimizer,
-                                           "train_sequence_length": train_sequence_length,
-                                           "rnn_size": rnn_size},
+                                           "sequence_length": train_sequence_length},
                                    model_dir=model_dir)
-
-    state_hook = RNNStateHook(state_size=rnn_size)
 
     experiment = tf.contrib.learn.Experiment(estimator=model,
                                              train_input_fn=train_input_fn,
@@ -96,7 +92,7 @@ def main(argv):
                                    config=estimator_config,
                                    params={"learning_rate": 0.0001,
                                            "optimizer": tf.train.AdamOptimizer,
-                                           "rnn_size": rnn_size},
+                                           "sequence_length": train_sequence_length},
                                    model_dir=model_dir)   #"tf_files/models/cnn-2018-03-13-06:32:20/"
 
     fast_predict = FastPredict(model, hooks=[])
