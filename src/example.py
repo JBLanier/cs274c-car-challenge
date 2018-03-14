@@ -1,9 +1,11 @@
 # example.py
 
 import os
+
 import imageio
 import numpy as np
-import player
+
+from src import player
 
 
 def play_jpg_frames_from_dir(frames_dir):

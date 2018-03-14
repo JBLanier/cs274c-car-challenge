@@ -3,7 +3,7 @@ jpg_outputs
 data
 CH_02_Prepared
 tfrecord_out
-HMB_*_prepared/
+../HMB_3_test_prepared/
 small_batch/
 tf_files/
 predictions.mp4
@@ -40,7 +40,7 @@ __pycache__
 \#*#
 .#*
 .coverage
-src
+
 
 *.swp
 *.map

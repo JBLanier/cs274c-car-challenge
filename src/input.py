@@ -3,20 +3,21 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from time import gmtime, strftime
-
-import tensorflow as tf
-import numpy as np
 import argparse
+import multiprocessing
 import os
 import sys
-import multiprocessing
+from time import gmtime, strftime
+
 import cv2
-from rnn import rnn_fn
-import player
 import data
-from fast_predict import FastPredict
+import numpy as np
+import tensorflow as tf
+from rnn import rnn_fn
 from rnn_hook import RNNStateHook
+
+from src import player
+from src.fast_predict import FastPredict
 
 FLAGS = None
 tf.set_random_seed(42)
@@ -32,7 +33,7 @@ def main(argv):
     val_file_names = get_tfrecord_file_names_from_directory(FLAGS.val_dir)
 
     train_sequence_length = 16
-    train_batch_size = 16
+    train_batch_size = 8
     rnn_size = 50
 
     train_input_fn = data.get_input_fn(input_file_names=train_file_names,
@@ -40,7 +41,7 @@ def main(argv):
                                        num_epochs=50,
                                        shuffle=True,
                                        window_size=train_sequence_length,
-                                       stride=1,
+                                       stride=5,
                                        apply_distortions=True)
 
     val_input_fn = data.get_input_fn(input_file_names=val_file_names,
@@ -65,7 +66,7 @@ def main(argv):
                                    config=estimator_config,
                                    params={"learning_rate": 0.0001,
                                            "optimizer": tf.train.AdamOptimizer,
-                                           "train_sequence_length": train_sequence_length,
+                                           "sequence_length": train_sequence_length,
                                            "rnn_size": rnn_size},
                                    model_dir=model_dir)
 
@@ -96,6 +97,7 @@ def main(argv):
                                    config=estimator_config,
                                    params={"learning_rate": 0.0001,
                                            "optimizer": tf.train.AdamOptimizer,
+                                           "sequence_length": train_sequence_length,
                                            "rnn_size": rnn_size},
                                    model_dir=model_dir)   #"tf_files/models/cnn-2018-03-13-06:32:20/"
 
@@ -120,7 +122,7 @@ def main(argv):
             try:
                 out = predict_sess.run(next_element)
                 predictions = list(fast_predict.sequence_predict(out[0]))
-                print("PREDICTION: {}".format(predictions))
+                # print("PREDICTION: {}".format(predictions))
                 if video_writer is None:
                     video_writer = cv2.VideoWriter("predictions.mp4", fourcc, 40.0, (out[2][0,-1].shape[1], out[2][0,-1].shape[0]))
 

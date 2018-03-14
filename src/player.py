@@ -50,14 +50,14 @@ def display_frame(img, true_angle=None, predicted_angle=None, avg_angle=None, de
     img_to_modify = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
     if true_angle or predicted_angle or avg_angle or debug_info:
+        if true_angle is not None:
+            draw_steering_line(img_to_modify, true_angle, (255, 0, 0), guide=guide)
         if predicted_angle is not None:
-            draw_steering_line(img_to_modify, predicted_angle, (255, 0, 0), guide=guide)
+            draw_steering_line(img_to_modify, predicted_angle, (0, 255, 0), guide=guide)
         if avg_angle is not None:
             draw_steering_line(img_to_modify, avg_angle, (0, 165, 255), guide=guide)
-        if true_angle is not None:
-            draw_steering_line(img_to_modify, true_angle, (0, 255, 0), guide=guide)
         if debug_info:
-            cv2.putText(img_to_modify, debug_info,
+            cv2.putText(img_to_modify, "Green-Predicted, Blue-Ground Truth, Predicted Angle: " + debug_info,
                         (1, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1)
         # apply the overlay
         np.clip(img_to_modify, 0, 255)

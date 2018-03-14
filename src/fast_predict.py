@@ -11,7 +11,6 @@
  """
 
 import tensorflow as tf
-from rnn_hook import RNNStateHook
 
 
 class FastPredict:
@@ -76,9 +75,7 @@ class FastPredict:
             raise ValueError("All batches must be of the same size. First-batch:" + str(self.batch_size) + " This-batch:" + str(len(features)))
 
         results = []
-        for _ in range(1):
-            for __ in range(1):
-                results.append(next(self.predictions))
+        results.append(next(self.predictions))
         return results
 
     def close(self):

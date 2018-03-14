@@ -6,42 +6,40 @@ import tensorflow as tf
 
 
 def rnn_fn(features, labels, mode, params):
-    sequence_length = params.get("train_sequence_length", 16)
+    sequence_length = params["sequence_length"]
     rnn_size = params.get("rnn_size", 50)
 
     if isinstance(features, dict):
         features = features['x']
 
-    print("FEATURES SHAPE: {}".format(features.shape.as_list()))
-    if features.shape.as_list() != [None,66,200,3]:
-        features = tf.reshape(features, [-1, features.shape[-3], features.shape[-2], features.shape[-1]])
-        print("had to reshape to {}".format(features.shape))
-    else:
-        print("did not have to reshape")
 
-    conv1 = tf.layers.conv2d(features, 24, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv1')
-    conv2 = tf.layers.conv2d(conv1, 36, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv2')
-    conv3 = tf.layers.conv2d(conv2, 48, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv3')
-    conv4 = tf.layers.conv2d(conv3, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
-    conv5 = tf.layers.conv2d(conv4, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
+    features = tf.placeholder_with_default(features,[None,sequence_length,66,200,3])
 
-    flattened = tf.layers.flatten(conv5)
+    print("features shape: {}".format(features.shape))
 
-    # Add fully-connected layers
-    fc1 = tf.layers.dense(flattened, units=1164, activation=tf.nn.relu, name="fc_1")
-    fc2 = tf.layers.dense(fc1, units=100, activation=tf.nn.relu, name="fc_2")
-    fc3 = tf.layers.dense(fc2, units=50, activation=tf.nn.relu, name="fc_3")
 
-    print("fc3 shape: {}".format(fc3.shape))
+    conv1 = tf.layers.conv3d(features, 24, (3, 5, 5), strides=(1, 2, 2), padding='valid', activation=tf.nn.relu, name='conv1')
+    conv2 = tf.layers.conv3d(conv1, 36, (3, 5, 5), strides=(1, 2, 2), padding='valid', activation=tf.nn.relu, name='conv2')
+    conv3 = tf.layers.conv3d(conv2, 48, (3, 5, 5), strides=(1, 2, 2), padding='valid', activation=tf.nn.relu, name='conv3')
+    conv4 = tf.layers.conv3d(conv3, 64, 3, strides=(1, 1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
+    conv5 = tf.layers.conv3d(conv4, 64, (1, 3, 3), strides=(1, 1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
 
-    sequenced = tf.reshape(fc3, [-1, sequence_length, fc3.shape[1]])
-    print("Sequenced size: {}".format(sequenced.shape))
-    rnn_cell = tf.nn.rnn_cell.BasicRNNCell(rnn_size)
+    print("conv shape: {}".format(conv5.shape))
+
+    conv_shape = conv5.get_shape().as_list()
+    flattened = tf.reshape(conv5, [-1, conv_shape[1], conv_shape[2] * conv_shape[3] * conv_shape[4]])
+
+    print("flattened shape: {}".format(flattened.shape))
+
+    rnn_cell1 = tf.nn.rnn_cell.BasicLSTMCell(1050)
+    rnn_cell2 = tf.nn.rnn_cell.BasicLSTMCell(100)
+    rnn_cell3 = tf.nn.rnn_cell.BasicLSTMCell(50)
+    rnn_cell4 = tf.nn.rnn_cell.BasicLSTMCell(10)
+
+    multi_cell = tf.nn.rnn_cell.MultiRNNCell([rnn_cell1, rnn_cell2, rnn_cell3, rnn_cell4])
 
     # if mode == tf.estimator.ModeKeys.TRAIN:
-    rnn_outputs, rnn_out_state = tf.nn.dynamic_rnn(rnn_cell,
-                                                       sequenced,
-                                                       dtype=tf.float32)
+    rnn_outputs, rnn_out_state = tf.nn.dynamic_rnn(multi_cell,flattened, dtype=tf.float32)
     # else:
     #     initial_state = rnn_cell.zero_state(batch_size=1, dtype=tf.float32)
     #     initial_state = tf.identity(initial_state, name="RNN/init_states")
