@@ -52,7 +52,7 @@ def _image_preprocess_fn(image_buffer, input_height, input_width, input_mean, in
 
 
 def get_input_fn(input_file_names, batch_size=1, num_epochs=None, shuffle=False, shard_size=3000,
-                 return_full_size_image=False):
+                 return_full_size_image=False, offset=0):
     """Creates input_fn according to parameters
 
         Args:
@@ -74,7 +74,8 @@ def get_input_fn(input_file_names, batch_size=1, num_epochs=None, shuffle=False,
 
         example_fmt = {
             "image": tf.FixedLenFeature((), tf.string),
-            "target": tf.FixedLenFeature((), tf.float32, -1)
+            "target": tf.FixedLenFeature((), tf.float32, -1),
+            "camera_index": tf.FixedLenFeature((), tf.int64, -1)
         }
         parsed = tf.parse_single_example(example, example_fmt)
 
@@ -87,7 +88,17 @@ def get_input_fn(input_file_names, batch_size=1, num_epochs=None, shuffle=False,
         preprocessed_image = _image_preprocess_fn(image_buffer=parsed["image"], input_height=66, input_width=200,
                                                   input_mean=128, input_std=128)
 
-        return preprocessed_image, parsed["target"]
+
+        target = parsed["target"]
+
+        if parsed["camera_index"] == 0:
+            target = target + offset
+        elif parsed["camera_index"] == 2:
+            target = target - offset
+        elif parsed["camera_index"] != 1:
+            print("camera index wasn't an allowed value: {}".format(parsed["camera_index"]))
+
+        return preprocessed_image, target
 
     def input_fn():
         file_names = tf.constant(input_file_names, dtype=tf.string, name='input_file_names')
@@ -116,26 +127,28 @@ def get_input_fn(input_file_names, batch_size=1, num_epochs=None, shuffle=False,
     return input_fn
 
 
-def get_model_fn(conv_layers, dense_units, learning_rate):
+def get_model_fn():
 
     def cnn_fn(features, labels, mode, params):
 
         if isinstance(features, dict):
             features = features['x']
 
-        net = features
+        conv1 = tf.layers.conv2d(features, 24, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv1')
+        conv2 = tf.layers.conv2d(conv1, 36, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv2')
+        conv3 = tf.layers.conv2d(conv2, 48, 5, strides=(2, 2), padding='valid', activation=tf.nn.relu, name='conv3')
+        conv4 = tf.layers.conv2d(conv3, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv4')
+        conv5 = tf.layers.conv2d(conv4, 64, 3, strides=(1, 1), padding='valid', activation=tf.nn.relu, name='conv5')
 
-        for i, conv in enumerate(conv_layers):
-            net = tf.layers.conv2d(net, filters=conv[1], kernel_size=conv[0], strides=(conv[2], conv[2]),
-                                   padding='valid', activation=tf.nn.relu, name="conv{}".format(i+1))
-
-        net = tf.layers.flatten(net)
+        flattened = tf.layers.flatten(conv5)
 
         # Add fully-connected layers
-        for i, units in enumerate(dense_units):
-            net = tf.layers.dense(net, units=units, activation=tf.nn.relu, name="dense{}".format(i+1))
+        fc1 = tf.layers.dense(flattened, units=1164, activation=tf.nn.relu, name="fc_1")
+        fc2 = tf.layers.dense(fc1, units=100, activation=tf.nn.relu, name="fc_2")
+        fc3 = tf.layers.dense(fc2, units=50, activation=tf.nn.relu, name="fc_3")
+        fc4 = tf.layers.dense(fc3, units=10, activation=tf.nn.relu, name="fc_4")
 
-        output_layer = tf.layers.dense(net, units=1, activation=None, name="output")
+        output_layer = tf.layers.dense(fc4, units=1, activation=None, name="output")
 
         # Reshape the output layer to a 1-dim Tensor to return predictions
         predictions = tf.squeeze(output_layer, 1)

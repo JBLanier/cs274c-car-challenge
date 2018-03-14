@@ -43,77 +43,19 @@ def calculate_conv_output_size(input_size, kernel_size, stride):
 def run_experiment(hparams):
     """Run the training and evaluate using the high level API"""
 
-    allowed_kernel_sizes = [3, 5, 7, 12]
-    allowed_filter_nums = [8, 16, 24, 32]
-    allowed_strides = [1, 2, 4]
-
-    conv_layers = []
-    filter_num_scale_factor = hparams.filter_num_scale_factor
-    kernel_size = allowed_kernel_sizes[hparams.conv1_kernel_size]
-    filter_num = allowed_filter_nums[hparams.conv1_filter_num]
-    stride = allowed_strides[hparams.conv1_stride]
-
-    kernel_decrement_layers = []
-    for i in range(hparams.num_kernal_size_decrements):
-        decrement_layer = int((hparams.last_decrement_layer / (i + 1)) * hparams.num_conv_layers)
-        kernel_decrement_layers.append(decrement_layer)
-
-    print("{} Convolutional Layers Requested".format(hparams.num_conv_layers))
-    print("\n-----Kernal Decrements will be performed at layers: {}".format(kernel_decrement_layers))
-
-    input_size = (66, 200)
-
-    print("\n-----CONV LAYERS: ")
-    for i in range(hparams.num_conv_layers):
-        if input_size[0] < kernel_size or input_size[1] < kernel_size:
-            print("\nNo more conv layers will be made because the next input size {} is too small for kernel size {}"
-                  .format(input_size, kernel_size))
-            break
-
-        conv_layers.append((kernel_size, filter_num, stride))
-
-        print("\n--Layer {}\nInput Size: {} Kernel Size: {} Num Filters: {} Stride: {}"
-              .format(i+1, input_size, kernel_size, filter_num, stride))
-
-        input_size = calculate_conv_output_size(input_size, kernel_size, stride)
-        print("  Output Size {}".format(input_size))
-
-        if i+1 in kernel_decrement_layers:
-            print("  (decrementing kernel size/stride after this layer)")
-            kernel_size = allowed_kernel_sizes[max(0, allowed_kernel_sizes.index(kernel_size)-1)]
-            stride = allowed_strides[max(0, allowed_strides.index(stride)-1)]
-
-        filter_num = int(filter_num * max(1, filter_num_scale_factor))
-        filter_num_scale_factor = filter_num_scale_factor * hparams.filter_num_scale_decay
-
-    print("\n{} Dense Layers Requested".format(hparams.num_dense_layers))
-    print("\n-----Dense LAYERS: ")
-    dense_units = []
-    for i in range(hparams.num_dense_layers):
-        units = max(1, int(hparams.first_dense_layer_size * hparams.dense_scale_factor ** i))
-        if units == 1:
-            print("\nNo more dense layers will be made because the next hidden layer would only have one neuron.")
-            break
-        dense_units.append(units)
-
-    print(dense_units)
-    print()
-
     train_input = model.get_input_fn(input_file_names=hparams.train_files,
                                batch_size=hparams.train_batch_size,
                                num_epochs=hparams.num_epochs,
-                               shuffle=True)
+                               shuffle=True,
+                               offset=hparams.offset)
 
     eval_input = model.get_input_fn(input_file_names=hparams.eval_files,
                               batch_size=hparams.eval_batch_size,
                               num_epochs=1,
-                              shuffle=False)
+                              shuffle=False,
+                              offset=hparams.offset)
 
-    model_fn = model.get_model_fn(
-        conv_layers=conv_layers,
-        # Construct dense layer sizes with exponential decay
-        dense_units=dense_units,
-        learning_rate=hparams.learning_rate)
+    model_fn = model.get_model_fn()
 
     keep_checkpoints_max = 1
     if hparams.save_checkpoints:
@@ -227,86 +169,12 @@ if __name__ == '__main__':
         required=True
     )
     # Training arguments
-    parser.add_argument(
-        '--learning-rate',
-        help='Learning rate for the optimizer',
-        default=0.0001,
-        type=float
-    )
-    parser.add_argument(
-        '--num-conv-layers',
-        help='',
-        default=5,
-        type=int
-    )
-    parser.add_argument(
-        '--conv1-kernel-size',
-        help='',
-        default=1,
-        type=int
-    )
 
     parser.add_argument(
-        '--conv1-filter-num',
-        help='',
-        default=2,
-        type=int
-    )
-
-    parser.add_argument(
-        '--conv1-stride',
-        help='',
-        default=1,
-        type=int
-    )
-
-    parser.add_argument(
-        '--filter-num-scale-factor',
-        help='',
-        default=1.5,
-        type=float
-    )
-
-    parser.add_argument(
-        '--filter-num-scale-decay',
-        help='',
-        default=0.8,
-        type=float
-    )
-
-    parser.add_argument(
-        '--num-kernal-size-decrements',
-        help='',
-        default=1,
-        type=int
-    )
-
-    parser.add_argument(
-        '--last-decrement-layer',
-        help='',
-        default=0.6,
-        type=float
-    )
-
-    parser.add_argument(
-        '--first-dense-layer-size',
-        help='',
-        default=1200,
-        type=int
-    )
-
-    parser.add_argument(
-        '--num-dense-layers',
-        help='',
-        default=4,
-        type=int
-    )
-
-    parser.add_argument(
-        '--dense-scale-factor',
-        help='How quickly should the size of the layers in the DNN decay',
-        default=0.7,
-        type=float
+        '--offset',
+        help='label offset for left and right camera images',
+        type=float,
+        default=0
     )
 
     # end training arguments

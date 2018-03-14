@@ -158,7 +158,7 @@ if __name__ == "__main__":
 
         params = {key: int(value) if is_int[key] else value for key, value in params.items()}
 
-        job_dir = "{}/{}".format(args.jobs_dir, hyperopt_eval_num)
+        job_dir = "{}/{}".format(args.jobs_dir, params['offset'])
 
         command = "python -m trainer.task" \
                   + ''.join(" \\\n --{} {}".format(key, value) for key, value in params.items()) \
@@ -195,7 +195,6 @@ if __name__ == "__main__":
                 'status': STATUS_OK,
                 # -- store other results like this
                 'params': params,
-                'fdsfsd': objective_summaries[-1]
             }
         else:
 

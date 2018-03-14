@@ -13,7 +13,7 @@ mkdir $OUTPUT_DIR
 HPTUNING_CONFIG=hptuning_config.yaml
 
 python -u cnn_hyperopt.py \
---num-trials 10000 \
+--num-trials 1000 \
 --config $HPTUNING_CONFIG \
 --jobs-dir $OUTPUT_DIR \
 -- \
