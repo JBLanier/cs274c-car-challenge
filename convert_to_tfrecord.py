@@ -56,7 +56,10 @@ def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 
-def main(csv_path, frames_dir, out_dir, batch_size):
+def main(csv_path, frames_dir, out_dir, batch_size, camera_index=None):
+
+    print("camera index: {}".format(camera))
+
     csv = np.genfromtxt(csv_path, dtype=None, delimiter=',', names=True)
     csv_index = 0
 
@@ -88,11 +91,22 @@ def main(csv_path, frames_dir, out_dir, batch_size):
                     filename = "{}/{}.jpg".format(frames_dir, row[0])
                     image_bytes = open(filename, "rb").read()
                     target = row[1]
-                    example = tf.train.Example(features=tf.train.Features(
-                        feature={
-                            'image': _bytes_feature(image_bytes),
-                            'target': _float_feature(target)
-                        }))
+
+                    example = None
+                    if camera_index is None:
+                        example = tf.train.Example(features=tf.train.Features(
+                            feature={
+                                'image': _bytes_feature(image_bytes),
+                                'target': _float_feature(target)
+                            }))
+                    else:
+                        example = tf.train.Example(features=tf.train.Features(
+                            feature={
+                                'image': _bytes_feature(image_bytes),
+                                'target': _float_feature(target),
+                                'camera_index': _int64_feature(camera_index)
+                            }))
+
                     record_writer.write(example.SerializeToString())
 
                     print_progress_bar(csv_index - start_index, num_to_write, 'Generating %s' % output_file)
@@ -130,13 +144,33 @@ if __name__ == '__main__':
         default=3000,
         help='Max number of images per tfrecord (making each record ~100MB is preferable)'
     )
+
+    parser.add_argument(
+        '--prepared_folder',
+        type=str,
+        default=None,
+        help=''
+    )
+
     args, _ = parser.parse_known_args()
 
-    if args.csv_path is None:
-        print("--csv_path must be specified.")
-        exit(1)
-    if args.frames_dir is None:
-        print("--frame_dir must be specified.")
-        exit(1)
+    if not args.prepared_folder:
 
-    main(args.csv_path, args.frames_dir, args.out_dir, args.batch_size)
+        if args.csv_path is None:
+            print("--csv_path must be specified.")
+            exit(1)
+        if args.frames_dir is None:
+            print("--frame_dir must be specified.")
+            exit(1)
+
+        main(args.csv_path, args.frames_dir, args.out_dir, args.batch_size)
+    else:
+        for group in ['HMB_1_','HMB_2_','HMB_4_','HMB_5_','HMB_6_']:
+            for camera_index, camera in enumerate(['left','center','right']):
+                main(csv_path=args.prepared_folder+'/'+group+camera+'/data.csv',
+                     frames_dir=args.prepared_folder+'/'+group+camera+'/frames',
+                     out_dir=args.out_dir+'/'+group+camera+'_tfrecords',
+                     batch_size=args.batch_size,
+                     camera_index=camera_index)
+
+
