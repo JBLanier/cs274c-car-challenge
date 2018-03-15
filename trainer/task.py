@@ -45,14 +45,14 @@ def calculate_conv_output_size(input_size, kernel_size, stride):
 def run_experiment(hparams):
     """Run the training and evaluate using the high level API"""
 
-    # print("OFFSET IS {}".format(hparams.offset))
-    #
+    print("OFFSET IS {}".format(hparams.offset))
+
     # with tf.Session() as sess:
     #     batch_size = 16
     #     input_fn = model.get_input_fn(input_file_names=hparams.train_files,
     #                           batch_size=hparams.eval_batch_size,
     #                           num_epochs=1,
-    #                           shuffle=True,
+    #                           shuffle=False,
     #                           return_full_size_image=True, offset=hparams.offset)
     #     next_element = input_fn()
     #     for i in range(40000):
@@ -68,7 +68,7 @@ def run_experiment(hparams):
     #                     if player.display_frame(img=frame,
     #                                             debug_info=str(out[1][j]),
     #                                             true_angle=out[1],
-    #                                             milliseconds_time_to_wait=1):
+    #                                             milliseconds_time_to_wait=20):
     #                         break
     #             except tf.errors.OutOfRangeError:
     #                 break
