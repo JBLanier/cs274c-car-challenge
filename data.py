@@ -68,7 +68,7 @@ def get_input_fn(input_file_names,
                  return_full_size_image=False,
                  window_size=None,
                  stride=1,
-
+                 offset=0
                  ):
     """Creates input_fn according to parameters
 
@@ -89,22 +89,41 @@ def get_input_fn(input_file_names,
     def parse_fn(example):
         """Parse TFExample records and perform simple data augmentation."""
 
-        example_fmt = {
-            "image": tf.FixedLenFeature((), tf.string),
-            "target": tf.FixedLenFeature((), tf.float32, -1)
-        }
+        if offset != 0:
+            example_fmt = {
+                "image": tf.FixedLenFeature((), tf.string),
+                "target": tf.FixedLenFeature((), tf.float32, -1),
+                "camera_index": tf.FixedLenFeature((), tf.int64, -1)
+            }
+        else:
+            example_fmt = {
+                "image": tf.FixedLenFeature((), tf.string),
+                "target": tf.FixedLenFeature((), tf.float32, -1)
+            }
+
         parsed = tf.parse_single_example(example, example_fmt)
+
+        target = parsed["target"]
+
+        if offset != 0:
+            print("OFFSET WILL BE APPLIED")
+
+            camera_index = parsed["camera_index"]
+
+            target = tf.cond(tf.equal(camera_index, 0), lambda: target + offset, lambda: target)
+            target = tf.cond(tf.equal(camera_index, 2), lambda: target - offset, lambda: target)
+            # This should never happen, cause an error if it does
+            target = tf.cond(tf.equal(camera_index, -1), lambda: tf.constant([[[[[-100000,-100000,-100000]]]]],tf.float32), lambda: target)
 
         if return_full_size_image:
             preprocessed_image, full_size_image = _image_preprocess_fn(
-                image_buffer=parsed["image"], input_height=66, input_width=200, apply_distortions=apply_distortions,
-                return_full_size_image=True)
-            return preprocessed_image, parsed["target"], full_size_image
+                image_buffer=parsed["image"], input_height=66, input_width=200, return_full_size_image=True)
+            return preprocessed_image, target, full_size_image
 
         preprocessed_image = _image_preprocess_fn(image_buffer=parsed["image"], input_height=66, input_width=200,
-                                                  apply_distortions=apply_distortions)
+                                                  )
 
-        return preprocessed_image, parsed["target"]
+        return preprocessed_image, target
 
     def input_fn():
         file_names = tf.constant(input_file_names, dtype=tf.string, name='input_file_names')
