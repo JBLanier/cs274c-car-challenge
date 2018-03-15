@@ -41,7 +41,7 @@ def main(argv):
                                        shuffle=True,
                                        window_size=train_sequence_length,
                                        stride=1,
-                                       apply_distortions=True)
+                                       apply_distortions=False)
 
     val_input_fn = data.get_input_fn(input_file_names=val_file_names,
                                      batch_size=train_batch_size,
