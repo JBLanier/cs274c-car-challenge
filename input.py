@@ -102,11 +102,11 @@ def get_input_fn(input_file_names, batch_size=1, num_epochs=None, shuffle=False,
 
         if return_full_size_image:
             preprocessed_image, full_size_image = _image_preprocess_fn(
-                image_buffer=parsed["image"], input_height=66, input_width=200, input_mean=128,
+                image_buffer=parsed["image"], input_height=299, input_width=299, input_mean=128,
                 input_std=128, return_full_size_image=True)
             return preprocessed_image, parsed["target"], full_size_image
 
-        preprocessed_image = _image_preprocess_fn(image_buffer=parsed["image"], input_height=66, input_width=200,
+        preprocessed_image = _image_preprocess_fn(image_buffer=parsed["image"], input_height=299, input_width=299,
                                                   input_mean=128, input_std=128)
 
         return preprocessed_image, parsed["target"]
@@ -169,7 +169,8 @@ def main(argv):
             "learning_rate": 0.0001,
             "optimizer": tf.train.AdamOptimizer,
             "hidden_units": ["Cool story bro"],
-            "architecture": 'inception_v3'
+            "architecture": 'inception_v3',
+            "model_dir": model_dir
         },
         model_dir=model_dir,
         config=estimator_config
