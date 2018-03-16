@@ -164,11 +164,12 @@ def main(argv):
     )
 
     model = tf.estimator.Estimator(
-        model_fn=cnn_fn,
+        model_fn=transfer_learning_cnn_fn,
         params={
             "learning_rate": 0.0001,
             "optimizer": tf.train.AdamOptimizer,
-            "hidden_units": ["Cool story bro"]
+            "hidden_units": ["Cool story bro"],
+            "architecture": 'inception_v3'
         },
         model_dir=model_dir,
         config=estimator_config
