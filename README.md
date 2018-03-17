@@ -1,3 +1,7 @@
+## Tuned CNN + LSTM on Test Set:
+(Click to play video)  
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/jvfxBHvNtnM/0.jpg)](http://www.youtube.com/watch?v=jvfxBHvNtnM "Click to play on YouTube")
+
 # Relevant Links
 
 - [Udacity Challenge Github Repo](https://github.com/udacity/self-driving-car)
